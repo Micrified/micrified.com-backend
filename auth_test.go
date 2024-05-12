@@ -16,12 +16,6 @@ import (
   "time"
 )
 
-const (
-  Hostname    = "http://localhost:3070"
-  LoginRoute  = "/login"
-  LogoutRoute = "/logout"
-)
-
 
 /*\
  *******************************************************************************
@@ -76,8 +70,8 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
 
 
 var (
-  LoginURL  string = fmt.Sprintf("%s%s", Hostname, LoginRoute)
-  LogoutURL string = fmt.Sprintf("%s%s", Hostname, LogoutRoute)
+  LoginURL string = os.Getenv("TEST_HOSTNAME") + "/" + login.Name
+  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.Name
 )
 
 // TestLoginPenalty verifies that repeated login requests with incorrect

@@ -59,7 +59,7 @@ func ToByteSlice (h Hash) []byte {
 
 
 // NewSecret: Returns a new cryptographically secure (secret,salt) hash pair
-func NewSecret (digest string) (secret Hash, salt Hash, err error) {
+func NewSecret (digest string) (secret, salt Hash, err error) {
   var b []byte = make([]byte, HashSize)
   if _, err = rand.Read(b); nil != err {
     return
@@ -138,11 +138,8 @@ func (s *Service) Penalised (ip string) bool {
 
 // Penalise installs or refreshes a penalty for the given IP
 func (s *Service) Penalise (ip string) {
-  fmt.Println("Penalise()")
   if penalty, ok := s.penalties.Get(ip); ok {
-    fmt.Printf("Old penalty: %+v\n", penalty)
     updated := penalty.Refresh(&s.config)
-    fmt.Printf("New penalty: %+v\n", updated)
     s.penalties.Put(ip, updated)
   } else {
     s.penalties.Put(ip, NewPenalty(&s.config))
@@ -197,12 +194,9 @@ func (s *Service) Authenticate (ip, username, period string, f AuthFunc) (Sessio
     t = max(min(time.Duration(value) * time.Second, MaxSessionPeriod), 
       MinSessionPeriod)
   }
-  fmt.Printf("Duration is %v\n", t)
 
   // Create session; register if no error
   if z, err = NewSession(ip, t); nil == err {
-    fmt.Printf("Now is %v\n", time.Now().UTC())
-    fmt.Printf("Session expires at: %v\n", z.Expiration)
     s.sessions.Put(username, z)
   }
 
@@ -250,9 +244,6 @@ func (s *Service) Authorized (ip, username, secret string) error {
   }
 
   // Case: The secret has expired
-  fmt.Printf("The session expiration is: %v\n", z.Expiration)
-  fmt.Printf("The current time is: %v\n", time.Now().UTC())
-  fmt.Printf("The session is expired? %v\n", z.Expired())
   if z.Expired() {
     return fmt.Errorf("Session expired")
   }

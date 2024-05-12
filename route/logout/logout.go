@@ -11,6 +11,9 @@ import (
   "time"
 )
 
+const (
+  Name string = "logout"
+)
 
 // Data: Logout
 type logoutData struct {}
@@ -28,7 +31,7 @@ type Controller route.ControllerType[logoutData]
 
 func NewController (s route.Service) Controller {
   return Controller {
-    Name:             "logout",
+    Name:             Name,
     Methods: map[string]route.Method {
       http.MethodPost: route.Restful.Post,
     },

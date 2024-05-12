@@ -12,6 +12,10 @@ import (
   "time"
 )
 
+const (
+  Name string = "login"
+)
+
 
 // Data: Login
 type loginData struct {
@@ -31,7 +35,7 @@ type Controller route.ControllerType[loginData]
 
 func NewController (s route.Service) Controller {
   return Controller {
-    Name:             "login",
+    Name:             Name,
     Methods: map[string]route.Method {
       http.MethodPost: route.Restful.Post,
     },
@@ -158,7 +162,6 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
   }
 
   // Compose response
-  fmt.Printf("Response should be OK: %+v\n", re)
   return re.Marshal(route.ContentTypeJSON,
     &SessionCredential {
       Secret:      session.Secret.HexString(),

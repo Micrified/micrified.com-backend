@@ -14,6 +14,10 @@ import (
   "time"
 )
 
+const (
+  Name string = "blog"
+)
+
 // Data: Blog
 type blogData struct {
   TimeFormat, PageTable, ContentTable string
@@ -32,7 +36,7 @@ type Controller route.ControllerType[blogData]
 
 func NewController (s route.Service) Controller {
   return Controller {
-    Name:                "blog",
+    Name:                Name,
     Methods: map[string]route.Method {
       http.MethodGet:    route.Restful.Get,
       http.MethodPost:   route.Restful.Post,

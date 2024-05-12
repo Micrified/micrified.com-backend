@@ -15,13 +15,6 @@ import (
   "testing"
 )
 
-const (
-  Hostname    = "http://localhost:3070"
-  BlogRoute   = "/blog"
-  LoginRoute  = "/login"
-  LogoutRoute = "/logout"
-)
-
 
 /*\
  *******************************************************************************
@@ -75,11 +68,17 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
 \*/
 
 
+var (
+  LoginURL string  = os.Getenv("TEST_HOSTNAME") + "/" + login.Name
+  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.Name
+  BlogURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.Name
+)
+
+
 // TestBlogImmutableRequests sends a GET request to the /blog endpoint, and 
 // retrieves a list of blog headers.
 func TestBlogImmutableRequests (t *testing.T) {
   var (
-    url  string            = fmt.Sprintf("%s%s", Hostname, BlogRoute)
     body []byte            = []byte{}
     list []blog.BlogHeader = []blog.BlogHeader{}
     err  error             = nil
@@ -87,20 +86,20 @@ func TestBlogImmutableRequests (t *testing.T) {
   )
 
   // Fetch blog list; close body after
-  if res, err = http.Get(url); nil != err {
-    t.Fatalf("GET failed for %s: %v", url, err)
+  if res, err = http.Get(BlogURL); nil != err {
+    t.Fatalf("GET failed for %s: %v", BlogURL, err)
   } else {
     defer res.Body.Close()
   }
 
   // Read response body
   if body, err = ioutil.ReadAll(res.Body); nil != err {
-    t.Fatalf("GET failed for %s: %v", url, err)
+    t.Fatalf("GET failed for %s: %v", BlogURL, err)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &list); nil != err {
-    t.Fatalf("GET failed for %s: %v", url, err)
+    t.Fatalf("GET failed for %s: %v", BlogURL, err)
   }
 
 }
@@ -109,12 +108,6 @@ func TestBlogImmutableRequests (t *testing.T) {
 
 // TestBlogMutableRequests sends the following sequence 
 func TestBlogMutableRequests (t *testing.T) {
-
-  var (
-    loginURL  string = fmt.Sprintf("%s%s", Hostname, LoginRoute)
-    logoutURL string = fmt.Sprintf("%s%s", Hostname, LogoutRoute)
-    blogURL   string = fmt.Sprintf("%s%s", Hostname, BlogRoute)
-  )
 
   // Environment variables
   username   := os.Getenv("TEST_USERNAME")
@@ -126,7 +119,7 @@ func TestBlogMutableRequests (t *testing.T) {
     Username:   username,
     Passphrase: passphrase,
   }, login.SessionCredential{}
-  err := loginFunc(loginURL, http.MethodPost, http.StatusOK, loginPost, &sessionCredential)
+  err := loginFunc(LoginURL, http.MethodPost, http.StatusOK, loginPost, &sessionCredential)
   if nil != err {
     t.Fatalf("Login POST failed: %v", err)
   }
@@ -143,7 +136,7 @@ func TestBlogMutableRequests (t *testing.T) {
       Body:     "Nature's first green is gold",
     },
   }, blog.BlogPostResponse{}
-  err = postFunc(blogURL, http.MethodPost, http.StatusOK, blogPost, &blogPostResponse)
+  err = postFunc(BlogURL, http.MethodPost, http.StatusOK, blogPost, &blogPostResponse)
   if nil != err {
     t.Fatalf("Blog POST failed: %v", err)
   }
@@ -167,7 +160,7 @@ func TestBlogMutableRequests (t *testing.T) {
       Body:     "To see a World in a Grain of Sand",
     },
   }, blog.BlogPutResponse{}
-  err = putFunc(blogURL, http.MethodPut, http.StatusOK, blogPut, &blogPutResponse)
+  err = putFunc(BlogURL, http.MethodPut, http.StatusOK, blogPut, &blogPutResponse)
 
   if nil != err {
     t.Fatalf("Blog PUT failed: %v", err)
@@ -189,7 +182,7 @@ func TestBlogMutableRequests (t *testing.T) {
       ID: blogPostResponse.ID,
     },
   }
-  err = delFunc(blogURL, http.MethodDelete, http.StatusOK, blogDelete, nil)
+  err = delFunc(BlogURL, http.MethodDelete, http.StatusOK, blogDelete, nil)
   if nil != err {
     t.Fatalf("DELETE Response not as expected: %v", err)
   }
@@ -201,7 +194,7 @@ func TestBlogMutableRequests (t *testing.T) {
     Secret:   sessionCredential.Secret,
     Data:     logout.LogoutCredential{},
   }
-  err = logoutFunc(logoutURL, http.MethodPost, http.StatusNoContent, logoutPost, nil)
+  err = logoutFunc(LogoutURL, http.MethodPost, http.StatusNoContent, logoutPost, nil)
   if nil != err {
     t.Fatalf("POST Response not as expected: %v", err)
   }
