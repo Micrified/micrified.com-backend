@@ -11,15 +11,61 @@ import (
   "time"
 )
 
+
+/*\
+ *******************************************************************************
+ *                                  Constants                                  *
+ *******************************************************************************
+\*/
+
+
 const (
-  Name string = "logout"
+  RouteName string = "logout"
 )
 
+
+/*\
+ *******************************************************************************
+ *                              Type Definitions                               *
+ *******************************************************************************
+\*/
+
+
 // Data: Logout
-type logoutData struct {}
+type logoutDataType struct {}
 
 // Controller: Logout
-type Controller route.ControllerType[logoutData]
+type Controller route.ControllerType[logoutDataType]
+
+
+/*\
+ *******************************************************************************
+ *                              Global Variables                               *
+ *******************************************************************************
+\*/
+
+
+var logoutData logoutDataType = logoutDataType{}
+
+
+/*\
+ *******************************************************************************
+ *                                Constructors                                 *
+ *******************************************************************************
+\*/
+
+
+func NewController (s route.Service) Controller {
+  return Controller {
+    Name:             RouteName,
+    Methods: map[string]route.Method {
+      http.MethodPost: route.Restful.Post,
+    },
+    Service:           s,
+    Limit:             5 * time.Second,
+    Data:              logoutData,
+  }
+}
 
 
 /*\
@@ -28,18 +74,6 @@ type Controller route.ControllerType[logoutData]
  *******************************************************************************
 \*/
 
-
-func NewController (s route.Service) Controller {
-  return Controller {
-    Name:             Name,
-    Methods: map[string]route.Method {
-      http.MethodPost: route.Restful.Post,
-    },
-    Service:           s,
-    Limit:             5 * time.Second,
-    Data:              logoutData{},
-  }
-}
 
 func (c *Controller) Route () string {
   return "/" + c.Name

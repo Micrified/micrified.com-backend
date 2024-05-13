@@ -69,15 +69,16 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
 
 
 var (
-  LoginURL string  = os.Getenv("TEST_HOSTNAME") + "/" + login.Name
-  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.Name
-  BlogURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.Name
+  LoginURL string  = os.Getenv("TEST_HOSTNAME") + "/" + login.RouteName
+  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.RouteName
+  BlogURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.RouteName
+  BlogListURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.RouteListName
 )
 
 
-// TestBlogImmutableRequests sends a GET request to the /blog endpoint, and 
+// TestBlogList sends a GET request to the bloglist endpoint and 
 // retrieves a list of blog headers.
-func TestBlogImmutableRequests (t *testing.T) {
+func TestBlogList (t *testing.T) {
   var (
     body []byte            = []byte{}
     list []blog.BlogHeader = []blog.BlogHeader{}
@@ -86,32 +87,56 @@ func TestBlogImmutableRequests (t *testing.T) {
   )
 
   // Fetch blog list; close body after
-  if res, err = http.Get(BlogURL); nil != err {
-    t.Fatalf("GET failed for %s: %v", BlogURL, err)
+  if res, err = http.Get(BlogListURL); nil != err {
+    t.Fatalf("GET failed for %s: %v", BlogListURL, err)
   } else {
     defer res.Body.Close()
   }
 
   // Read response body
   if body, err = ioutil.ReadAll(res.Body); nil != err {
-    t.Fatalf("GET failed for %s: %v", BlogURL, err)
+    t.Fatalf("GET failed for %s: %v", BlogListURL, err)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &list); nil != err {
-    t.Fatalf("GET failed for %s: %v", BlogURL, err)
+    t.Fatalf("GET failed for %s: %v", BlogListURL, err)
   }
 
 }
 
-// Test mutable requests (LOGIN + POST/PUT/DELETE + LOGOUT)
-
-// TestBlogMutableRequests sends the following sequence 
-func TestBlogMutableRequests (t *testing.T) {
+// TestBlog performs a login, then tests the following REST operations
+// of blog: LOGIN + POST + GET + PUT + GET + DELETE + LOGOUT
+func TestBlog (t *testing.T) {
 
   // Environment variables
   username   := os.Getenv("TEST_USERNAME")
   passphrase := os.Getenv("TEST_PASSPHRASE")
+
+  // getBlog performs a GET request to the blog endpoint
+  getBlog := func(blog_id string, blogResponse *blog.BlogResponse) error {
+    fmt.Printf("getBlog(blog_id = %s)\n", blog_id)
+    req, err := http.NewRequest(http.MethodGet, BlogURL, nil)
+    if nil != err {
+      return err
+    }
+    q := req.URL.Query()
+    q.Set("id", blog_id)
+    req.URL.RawQuery = q.Encode()
+    res, err := http.DefaultClient.Do(req)
+    if nil != err {
+      return err
+    }
+    if http.StatusOK != res.StatusCode {
+      return fmt.Errorf("Bad status (got %d, expected %d)", res.StatusCode,
+        http.StatusOK)
+    }
+    body, err := ioutil.ReadAll(res.Body)
+    if nil != err {
+      return err
+    }
+    return json.Unmarshal(body, blogResponse)
+  }
 
   // LOGIN
   loginFunc := Request[login.SessionCredential, login.LoginCredential]
@@ -147,6 +172,21 @@ func TestBlogMutableRequests (t *testing.T) {
     t.Fatalf("POST Response content not as expected!")
   }
 
+  // GET
+  blogResponse := blog.BlogResponse{}
+  err = getBlog(blogPostResponse.ID, &blogResponse)
+  if nil != err {
+    t.Fatalf("Blog GET failed: %v", err)
+  }
+  if blogResponse.Title    != blogPostResponse.Title    ||
+     blogResponse.Subtitle != blogPostResponse.Subtitle ||
+     blogResponse.Tag      != blogPostResponse.Tag      ||
+     blogResponse.Body     != blogPostResponse.Body     ||
+     blogResponse.Created  != blogPostResponse.Created  ||
+     blogResponse.Updated  != blogPostResponse.Updated {
+    t.Fatalf("GET blog content not as expected!")
+  }
+
   // PUT
   putFunc := Request[blog.BlogPutResponse, auth.AuthData[blog.BlogPut]]
   blogPut, blogPutResponse := auth.AuthData[blog.BlogPut] {
@@ -171,6 +211,18 @@ func TestBlogMutableRequests (t *testing.T) {
      blogPut.Data.Tag != blogPutResponse.Tag ||
      blogPut.Data.Body != blogPutResponse.Body {
     t.Fatalf("PUT Response content not as expected!")
+  }
+
+  // GET
+  err = getBlog(blogPostResponse.ID, &blogResponse)
+  if nil != err {
+    t.Fatalf("Blog GET failed: %v", err)
+  }
+  if blogResponse.Title    != blogPutResponse.Title    ||
+     blogResponse.Subtitle != blogPutResponse.Subtitle ||
+     blogResponse.Tag      != blogPutResponse.Tag      ||
+     blogResponse.Body     != blogPutResponse.Body {
+    t.Fatalf("GET blog content not as expected!")
   }
 
   // DELETE

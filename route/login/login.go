@@ -12,18 +12,67 @@ import (
   "time"
 )
 
+
+/*\
+ *******************************************************************************
+ *                                  Constants                                  *
+ *******************************************************************************
+\*/
+
+
 const (
-  Name string = "login"
+  RouteName string = "login"
 )
 
 
+/*\
+ *******************************************************************************
+ *                              Type Definitions                               *
+ *******************************************************************************
+\*/
+
+
 // Data: Login
-type loginData struct {
+type loginDataType struct {
   TimeFormat, UserTable, CredentialTable string
 }
 
 // Controller: Login
-type Controller route.ControllerType[loginData]
+type Controller route.ControllerType[loginDataType]
+
+
+/*\
+ *******************************************************************************
+ *                              Global Variables                               *
+ *******************************************************************************
+\*/
+
+
+var loginData loginDataType = loginDataType {
+  TimeFormat:      "2006-01-02 15:04:05",
+  UserTable:       "users",
+  CredentialTable: "credentials",
+}
+
+
+/*\
+ *******************************************************************************
+ *                                Constructors                                 *
+ *******************************************************************************
+\*/
+
+
+func NewController (s route.Service) Controller {
+  return Controller {
+    Name:              RouteName,
+    Methods: map[string]route.Method {
+      http.MethodPost: route.Restful.Post,
+    },
+    Service:           s,
+    Limit:             5 * time.Second,
+    Data:              loginData,
+  }
+}
 
 
 /*\
@@ -32,22 +81,6 @@ type Controller route.ControllerType[loginData]
  *******************************************************************************
 \*/
 
-
-func NewController (s route.Service) Controller {
-  return Controller {
-    Name:             Name,
-    Methods: map[string]route.Method {
-      http.MethodPost: route.Restful.Post,
-    },
-    Service:           s,
-    Limit:             5 * time.Second,
-    Data: loginData {
-      TimeFormat:      "2006-01-02 15:04:05",
-      UserTable:       "users",
-      CredentialTable: "credentials",
-    },
-  }
-}
 
 func (c *Controller) Route () string {
   return "/" + c.Name
@@ -135,13 +168,11 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
       return false, err
     }
     if !rows.Next() { // No error implies non-infrastructure related error
-      fmt.Println("No account")
       return false, nil
     }
     if err = rows.Scan(&stored.Hash, &stored.Salt); nil != err {
       return false, err
     }
-    fmt.Println("Comparing credentials ...")
     return auth.Compare(login.Passphrase, stored.Salt, stored.Hash), nil
   }
 

@@ -114,15 +114,16 @@ func main() {
   }
 
   // Setup route controllers
-  blogController   := blog.NewController(s)
+  blogController, blogListController := blog.NewController(s), blog.NewListController(s)
   loginController  := login.NewController(s)
   logoutController := logout.NewController(s)
 
   // Install routes
   routes := map[string]func(http.ResponseWriter, *http.Request) {
-    blogController.Route()   : handler(&blogController),
-    loginController.Route()  : handler(&loginController),
-    logoutController.Route() : handler(&logoutController),
+    blogController.Route()     : handler(&blogController),
+    blogListController.Route() : handler(&blogListController),
+    loginController.Route()    : handler(&loginController),
+    logoutController.Route()   : handler(&logoutController),
   }
   for route, handle := range routes {
     http.HandleFunc(route, handle)

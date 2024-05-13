@@ -14,17 +14,86 @@ import (
   "time"
 )
 
+
+/*\
+ *******************************************************************************
+ *                                  Constants                                  *
+ *******************************************************************************
+\*/
+
+
 const (
-  Name string = "blog"
+  RouteName string     = "blog"
+  RouteListName string = "blogs"
 )
 
+
+/*\
+ *******************************************************************************
+ *                              Type Definitions                               *
+ *******************************************************************************
+\*/
+
+
 // Data: Blog
-type blogData struct {
+type blogDataType struct {
   TimeFormat, PageTable, ContentTable string
 }
 
 // Controller: Blog
-type Controller route.ControllerType[blogData]
+type Controller route.ControllerType[blogDataType]
+
+// ListController: Blog
+type ListController route.ControllerType[blogDataType]
+
+
+/*\
+ *******************************************************************************
+ *                              Global Variables                               *
+ *******************************************************************************
+\*/
+
+
+var blogData blogDataType = blogDataType {
+  TimeFormat:   "2006-01-02 15:04:05",
+  PageTable:    "blog_pages",
+  ContentTable: "page_content",
+}
+
+
+/*\
+ *******************************************************************************
+ *                                Constructors                                 *
+ *******************************************************************************
+\*/
+
+
+func NewListController (s route.Service) ListController {
+  return ListController {
+    Name: RouteListName,
+    Methods: map[string]route.Method {
+      http.MethodGet: route.Restful.Get,
+    },
+    Service: s,
+    Limit:   5 * time.Second,
+    Data:    blogData,
+  }
+}
+
+func NewController (s route.Service) Controller {
+  return Controller {
+    Name:                RouteName,
+    Methods: map[string]route.Method {
+      http.MethodGet:    route.Restful.Get,
+      http.MethodPost:   route.Restful.Post,
+      http.MethodPut:    route.Restful.Put,
+      http.MethodDelete: route.Restful.Delete,
+    },
+    Service:             s,
+    Limit:               5 * time.Second,
+    Data:                blogData,
+  }
+}
 
 
 /*\
@@ -34,24 +103,7 @@ type Controller route.ControllerType[blogData]
 \*/
 
 
-func NewController (s route.Service) Controller {
-  return Controller {
-    Name:                Name,
-    Methods: map[string]route.Method {
-      http.MethodGet:    route.Restful.Get,
-      http.MethodPost:   route.Restful.Post,
-      http.MethodPut:    route.Restful.Put,
-      http.MethodDelete: route.Restful.Delete,
-    },
-    Service:             s,
-    Limit:               5 * time.Second,
-    Data: blogData {
-      TimeFormat:        "2006-01-02 15:04:05",
-      PageTable:         "blog_pages",
-      ContentTable:      "page_content",
-    },
-  }
-}
+// Controller
 
 func (c *Controller) Route () string {
   return "/" + c.Name
@@ -69,6 +121,24 @@ func (c *Controller) Timeout () time.Duration {
 }
 
 
+// ListController
+
+func (c *ListController) Route() string {
+  return "/" + c.Name
+}
+
+func (c *ListController) Handler (s string) route.Method {
+  if method, ok := c.Methods[s]; ok {
+    return method
+  }
+  return nil
+}
+
+func (c *ListController) Timeout() time.Duration {
+  return c.Limit
+}
+
+
 /*\
  *******************************************************************************
  *                             Interface: Restful                              *
@@ -76,49 +146,60 @@ func (c *Controller) Timeout () time.Duration {
 \*/
 
 
-type BlogHeader struct {
+// Controller
+
+type BlogResponse struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
   Tag      string `json:"tag"`
+  Body     string `json:"body"`
   Created  string `json:"created"`
   Updated  string `json:"updated"`
 }
 
 func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    head BlogHeader
-    list []BlogHeader
+    blog    BlogResponse = BlogResponse{}
+    blog_id int          = -1
+    err     error        = nil
   )
-  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.created, b.updated " +
-                   "FROM %s AS a INNER JOIN %s as b " + 
-                   "ON a.content_id = b.id " +
-                   "ORDER BY b.created", c.Data.PageTable, c.Data.ContentTable)
 
-  // Extract rows
-  rows, err := c.Service.Database.DB.Query(q)
+  fail := func(err error, status int) error {
+    re.Status = status
+    return err
+  }
+
+  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.body, b.created, b.updated " + 
+                   "FROM %s AS a INNER JOIN %s AS b " +
+		   "ON a.content_id = b.id " + 
+		   "WHERE a.id = ?", c.Data.PageTable, c.Data.ContentTable)
+
+  // Validate ID
+  if blog_id, err = strconv.Atoi(rq.URL.Query().Get("id")); nil != err {
+    return fail(fmt.Errorf("Invalid query parameter"), http.StatusBadRequest)
+  }
+
+  // Extract row
+  rows, err := c.Service.Database.DB.Query(q, blog_id)
   defer rows.Close()
   if nil != err {
-    return err
+    return fail(err, http.StatusInternalServerError)
   }
 
-  // Marshall rows
-  for rows.Next() {
-    if err = rows.Scan(&head.ID, &head.Title, &head.Subtitle, &head.Tag, &head.Created,
-      &head.Updated); nil != err {
-        break
-      } else {
-        list = append(list, head)
-      }
+  // Verify entry exists
+  if !rows.Next() {
+    return fail(fmt.Errorf("Blog %s not found", blog_id), http.StatusNotFound)
   }
 
-  // Check error
-  if nil != err {
-    return err
+  // Marshal rows
+  if err = rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Tag,
+    &blog.Body, &blog.Created, &blog.Updated); nil != err {
+    return fail(err, http.StatusInternalServerError)
   }
 
   // Write to buffer and return any encoding error
-  return re.Marshal(route.ContentTypeJSON, &list)
+  return re.Marshal(route.ContentTypeJSON, &blog)
 }
 
 type BlogPost struct {
@@ -353,3 +434,63 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
   return nil
 }
 
+
+// ListController
+
+type BlogHeader struct {
+  ID       string `json:"id"`
+  Title    string `json:"title"`
+  Subtitle string `json:"subtitle"`
+  Tag      string `json:"tag"`
+  Created  string `json:"created"`
+  Updated  string `json:"updated"`
+}
+
+func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Result) error {
+  var (
+    head BlogHeader
+    list []BlogHeader
+  )
+  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.created, b.updated " +
+                   "FROM %s AS a INNER JOIN %s AS b " + 
+                   "ON a.content_id = b.id " +
+                   "ORDER BY b.created", c.Data.PageTable, c.Data.ContentTable)
+
+  // Extract rows
+  rows, err := c.Service.Database.DB.Query(q)
+  defer rows.Close()
+  if nil != err {
+    return err
+  }
+
+  // Marshal rows
+  for rows.Next() {
+    if err = rows.Scan(&head.ID, &head.Title, &head.Subtitle, &head.Tag, &head.Created,
+      &head.Updated); nil != err {
+        break
+      } else {
+        list = append(list, head)
+      }
+  }
+
+  // Check error
+  if nil != err {
+    return err
+  }
+
+  // Write to buffer and return any encoding error
+  return re.Marshal(route.ContentTypeJSON, &list)
+}
+
+func (c *ListController) Post (x context.Context, rq *http.Request, re *route.Result) error {
+  return re.Unimplemented()
+}
+
+
+func (c *ListController) Put (x context.Context, rq *http.Request, re *route.Result) error {
+  return re.Unimplemented()
+}
+
+func (c *ListController) Delete (x context.Context, rq *http.Request, re *route.Result) error {
+  return re.Unimplemented()
+}
