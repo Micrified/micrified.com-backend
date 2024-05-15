@@ -5,6 +5,7 @@ import (
   "encoding/json"
   "fmt"
   "io/ioutil"
+  "log"
   "micrified.com/route"
   "micrified.com/route/login"
   "micrified.com/route/logout"
@@ -47,6 +48,7 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
   if res, err = http.DefaultClient.Do(req); nil != err {
     return err
   }
+  defer res.Body.Close()
   if status != res.StatusCode {
     return fmt.Errorf("Bad status (got %d, expected %d)", res.StatusCode, status)
   }
@@ -70,9 +72,21 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
 
 
 var (
-  LoginURL string = os.Getenv("TEST_HOSTNAME") + "/" + login.Name
-  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.Name
+  LoginURL string = os.Getenv("TEST_HOSTNAME") + "/" + login.RouteName
+  LogoutURL string = os.Getenv("TEST_HOSTNAME") + "/" + logout.RouteName
 )
+
+
+func TestMain (m *testing.M) {
+  vs := []string{"TEST_HOSTNAME", "TEST_USERNAME", "TEST_PASSPHRASE"}
+  for _, v := range vs {
+    if "" == os.Getenv(v) {
+      log.Fatalf("Unset environment variable: %s", v)
+    }
+  }
+  os.Exit(m.Run())
+}
+
 
 // TestLoginPenalty verifies that repeated login requests with incorrect
 // credentials accrues an IP based penalty. It verifies the penalty is 
@@ -84,6 +98,7 @@ func TestLoginPenalty (t *testing.T) {
   penaltyConfig := auth.Config {
     Base: 2, Factor: 2, Limit: 8, Retry: 3,
   }
+
   // Environment variables
   validCredentials, invalidCredentials := login.LoginCredential {
     Username: os.Getenv("TEST_USERNAME"), Passphrase: os.Getenv("TEST_PASSPHRASE"),
@@ -109,6 +124,7 @@ func TestLoginPenalty (t *testing.T) {
   }
 
   // Test: Retry mechanism allows limited penalty-free login
+  fmt.Println(LoginURL)
   sessionCredential1 := login.SessionCredential{}
   if err := testRetries(&sessionCredential1); nil != err {
     t.Fatalf("Retries failed: %v", err)

@@ -1,18 +1,15 @@
-// Package logout provides a RESTful endpoint for performing a logout.
-// It accepts only a single POST method, and requires a valid session
-// token in order to process the logout request. A successful logout
-// results in the session information for the authenticated agent being
-// removed from the server session memory.
-package logout
+// Package static implements a RESTful endpoint for named pages.
+// It handles all methods along path: /static/{name} where name is a single
+// segment with no forward-slash path separator.
+package static
 
 import (
   "context"
-  "encoding/json"
-  "io/ioutil"
-  "micrified.com/internal/user"
-  "micrified.com/route"
-  "micrified.com/service/auth"
+  "fmt"
   "net/http"
+  "micrified.com/route"
+//  "micrified.com/service/auth"
+//  "micrified.com/service/database"
   "time"
 )
 
@@ -25,7 +22,7 @@ import (
 
 
 const (
-  RouteName string = "logout"
+  RouteName string = "static"
 )
 
 
@@ -36,11 +33,13 @@ const (
 \*/
 
 
-// Data: Logout
-type logoutDataType struct {}
+// Data: Static
+type staticDataType struct {
+  TimeFormat, IndexTable, ContentTable string
+}
 
-// Controller: Logout
-type Controller route.ControllerType[logoutDataType]
+// Controller: Static
+type Controller route.ControllerType[staticDataType]
 
 
 /*\
@@ -50,7 +49,11 @@ type Controller route.ControllerType[logoutDataType]
 \*/
 
 
-var logoutData logoutDataType = logoutDataType{}
+var staticData staticDataType = staticDataType {
+  TimeFormat:   "2006-01-02 15:04:05",
+  IndexTable:   "static_pages",
+  ContentTable: "page_content",
+}
 
 
 /*\
@@ -62,13 +65,13 @@ var logoutData logoutDataType = logoutDataType{}
 
 func NewController (s route.Service) Controller {
   return Controller {
-    Name:             RouteName,
+    Name:    RouteName,
     Methods: map[string]route.Method {
-      http.MethodPost: route.Restful.Post,
+      http.MethodGet: route.Restful.Get,
     },
-    Service:           s,
-    Limit:             5 * time.Second,
-    Data:              logoutData,
+    Service: s,
+    Limit:   5 * time.Second,
+    Data:    staticData,
   }
 }
 
@@ -81,7 +84,7 @@ func NewController (s route.Service) Controller {
 
 
 func (c *Controller) Route () string {
-  return "/" + c.Name
+  return "/" + c.Name + "/{name}"
 }
 
 func (c *Controller) Handler (s string) route.Method {
@@ -103,18 +106,17 @@ func (c *Controller) Timeout () time.Duration {
 \*/
 
 
-func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result) error {
-  return re.Unimplemented()
+type GetResponse struct {
+  Body    string `json:"body"`
+  Created string `json:"created"`
+  Updated string `json:"updated"`
 }
 
-type LogoutCredential struct {}
-
-func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
+func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body   []byte                          = []byte{}
-    err    error                           = nil
-    ip     string                          = x.Value(user.UserIPKey).(string)
-    logout auth.AuthData[LogoutCredential] = auth.AuthData[LogoutCredential]{}
+    page GetResponse = GetResponse{}
+    name string      = rq.PathValue("name")
+    err  error       = nil
   )
 
   fail := func(err error, status int) error {
@@ -122,28 +124,34 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     return err
   }
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
+  q := fmt.Sprintf("SELECT a.body, a.created, a.updated FROM %s AS a " +
+                   "INNER JOIN %s AS b " +
+		   "ON a.id = b.content_id " +
+		   "WHERE b.url_hash = unhex(md5(?))",
+		   c.Data.ContentTable, c.Data.IndexTable)
+
+  // Extract row
+  rows, err := c.Service.Database.DB.Query(q, name)
+  if nil != err {
+    return fail(err, http.StatusInternalServerError)
+  }
+  defer rows.Close()
+
+  // Verify entry exists
+  if !rows.Next() {
+    return fail(fmt.Errorf("Page %s not found", name), http.StatusNotFound)
+  }
+
+  // Marshal rows
+  if err = rows.Scan(&page.Body, &page.Created, &page.Updated); nil != err {
     return fail(err, http.StatusInternalServerError)
   }
 
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &logout); nil != err {
-    return fail(err, http.StatusBadRequest)
-  }
+  return re.Marshal(route.ContentTypeJSON, &page)
+}
 
-  // Check if authorized
-  if err = c.Service.Auth.Authorized(ip, logout.Username, logout.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
-  }
-
-  // Remove the session 
-  if err = c.Service.Auth.Deauthenticate(logout.Username); nil != err {
-    return fail(err, http.StatusInternalServerError)
-  }
-
-  // No content is to be returned, so HTTP status code 204 is expected
-  return re.NoContent()
+func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
+  return re.Unimplemented()
 }
 
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
@@ -153,3 +161,5 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
 func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Result) error {
   return re.Unimplemented()
 }
+
+

@@ -1,3 +1,8 @@
+// Package login implements a RESTful endpoint for performing a login.
+// It accepts only a single POST method, and processes user credentials.
+// Successful logins receive a time-limited session token which can be 
+// used to perform authenticated operations. Repeated failed login attempts
+// receive a retry penalty
 package login
 
 import (

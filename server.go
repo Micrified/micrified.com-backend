@@ -8,6 +8,7 @@ import (
   "micrified.com/route/blog"
   "micrified.com/route/login"
   "micrified.com/route/logout"
+  "micrified.com/route/static"
   "micrified.com/service/auth"
   "micrified.com/service/database"
   "net/http"
@@ -114,12 +115,14 @@ func main() {
   }
 
   // Setup route controllers
+  staticController := static.NewController(s)
   blogController, blogListController := blog.NewController(s), blog.NewListController(s)
   loginController  := login.NewController(s)
   logoutController := logout.NewController(s)
 
   // Install routes
   routes := map[string]func(http.ResponseWriter, *http.Request) {
+    staticController.Route()   : handler(&staticController),
     blogController.Route()     : handler(&blogController),
     blogListController.Route() : handler(&blogListController),
     loginController.Route()    : handler(&loginController),

@@ -5,6 +5,7 @@ import (
   "encoding/json"
   "fmt"
   "io/ioutil"
+  "log"
   "micrified.com/route"
   "micrified.com/route/blog"
   "micrified.com/route/login"
@@ -46,6 +47,7 @@ func Request [T any, U any] (url, method string, status int, u U, t *T) error {
   if res, err = http.DefaultClient.Do(req); nil != err {
     return err
   }
+  defer res.Body.Close()
   if status != res.StatusCode {
     return fmt.Errorf("Bad status (got %d, expected %d)", res.StatusCode, status)
   }
@@ -74,6 +76,17 @@ var (
   BlogURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.RouteName
   BlogListURL string   = os.Getenv("TEST_HOSTNAME") + "/" + blog.RouteListName
 )
+
+
+func TestMain (m *testing.M) {
+  vs := []string{"TEST_HOSTNAME", "TEST_USERNAME", "TEST_PASSPHRASE"}
+  for _, v := range vs {
+    if "" == os.Getenv(v) {
+      log.Fatalf("Unset environment variable: %s", v)
+    }
+  }
+  os.Exit(m.Run())
+}
 
 
 // TestBlogList sends a GET request to the bloglist endpoint and 

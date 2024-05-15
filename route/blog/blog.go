@@ -1,3 +1,5 @@
+// Package blog implements a RESTful endpoint for blogs.
+// It supports the creation, modification, and deletion of blog posts
 package blog
 
 import (
@@ -37,7 +39,7 @@ const (
 
 // Data: Blog
 type blogDataType struct {
-  TimeFormat, PageTable, ContentTable string
+  TimeFormat, IndexTable, ContentTable string
 }
 
 // Controller: Blog
@@ -56,7 +58,7 @@ type ListController route.ControllerType[blogDataType]
 
 var blogData blogDataType = blogDataType {
   TimeFormat:   "2006-01-02 15:04:05",
-  PageTable:    "blog_pages",
+  IndexTable:    "blog_pages",
   ContentTable: "page_content",
 }
 
@@ -173,7 +175,7 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.body, b.created, b.updated " + 
                    "FROM %s AS a INNER JOIN %s AS b " +
 		   "ON a.content_id = b.id " + 
-		   "WHERE a.id = ?", c.Data.PageTable, c.Data.ContentTable)
+		   "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
 
   // Validate ID
   if blog_id, err = strconv.Atoi(rq.URL.Query().Get("id")); nil != err {
@@ -263,7 +265,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
       return nil, err
     }
     q := fmt.Sprintf("INSERT INTO %s (title,subtitle,tag,content_id) " +
-      "VALUES (?,?,?,?)", c.Data.PageTable)
+      "VALUES (?,?,?,?)", c.Data.IndexTable)
     return t.ExecContext(c.Service.Database.Context, q, post.Data.Title, 
       post.Data.Subtitle, post.Data.Tag, id)
   }
@@ -328,7 +330,7 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
   updateRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("UPDATE %s AS a INNER JOIN %s AS b ON a.content_id = b.id " +
                      "SET a.title = ?, a.subtitle = ?, b.updated = ?, b.body = ? " +
-		     "WHERE a.id = ?", c.Data.PageTable, c.Data.ContentTable)
+		     "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
     return conn.ExecContext(c.Service.Database.Context, q, post.Data.Title, 
       post.Data.Subtitle, timeStamp, post.Data.Body, post.Data.ID)
   }
@@ -396,7 +398,7 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
   deleteRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("DELETE a, b FROM %s AS a INNER JOIN %s AS b " +
                      "ON a.content_id = b.id " +
-                     "WHERE a.id = ?", c.Data.PageTable, c.Data.ContentTable)
+                     "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
     return conn.ExecContext(c.Service.Database.Context, q, post.Data.ID)
   }
 
@@ -454,7 +456,7 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
   q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.created, b.updated " +
                    "FROM %s AS a INNER JOIN %s AS b " + 
                    "ON a.content_id = b.id " +
-                   "ORDER BY b.created", c.Data.PageTable, c.Data.ContentTable)
+                   "ORDER BY b.created", c.Data.IndexTable, c.Data.ContentTable)
 
   // Extract rows
   rows, err := c.Service.Database.DB.Query(q)

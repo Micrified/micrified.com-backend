@@ -10,6 +10,8 @@ replace micrified.com/route/login => ./route/login
 
 replace micrified.com/route/logout => ./route/logout
 
+replace micrified.com/route/static => ./route/static
+
 replace micrified.com/service/auth => ./service/auth
 
 replace micrified.com/service/database => ./service/database
@@ -22,6 +24,7 @@ require (
 	micrified.com/route/blog v0.0.0-00010101000000-000000000000
 	micrified.com/route/login v0.0.0-00010101000000-000000000000
 	micrified.com/route/logout v0.0.0-00010101000000-000000000000
+	micrified.com/route/static v0.0.0-00010101000000-000000000000
 	micrified.com/service/auth v0.0.0-00010101000000-000000000000
 	micrified.com/service/database v0.0.0-00010101000000-000000000000
 )
