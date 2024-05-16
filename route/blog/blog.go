@@ -357,10 +357,10 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
   }
 
   // Verify the right number of rows were affected
-  rows, err := r.RowsAffected()
+  n, err := r.RowsAffected()
   if nil != err {
     return fail(err, http.StatusInternalServerError)
-  } else if 0 == rows {
+  } else if 0 == n {
     return fail(fmt.Errorf("Unexpected database result (no rows modified)"), 
       http.StatusInternalServerError)
   }
