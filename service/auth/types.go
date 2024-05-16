@@ -5,7 +5,6 @@ import (
   "math"
   "sync"
   "time"
-  "fmt"
 )
 
 const (
