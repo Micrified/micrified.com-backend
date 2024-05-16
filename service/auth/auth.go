@@ -110,6 +110,7 @@ type Service struct {
 }
 
 func NewService (c Config) (Service, error) {
+  // TODO: Provide penalty expression as regex string 
   if c.Retry < 0 || c.Base < 1 {
     return Service{}, fmt.Errorf("Unmet condition: Retry >= 0, Base >= 1")
   }
