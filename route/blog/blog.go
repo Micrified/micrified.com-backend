@@ -425,12 +425,12 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
   }
 
   // Verify the right number of rows were affected
-  rows, err := r.RowsAffected()
+  n, err := r.RowsAffected()
   if nil != err {
     fail(err, http.StatusInternalServerError)
-  } else if 2 != rows {
+  } else if 2 != n {
     fail(fmt.Errorf("Unexpected database result (expected %d rows affected, got %d)",
-      2, rows), http.StatusInternalServerError)
+      2, n), http.StatusInternalServerError)
   }
 
   return nil
@@ -460,10 +460,10 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
 
   // Extract rows
   rows, err := c.Service.Database.DB.Query(q)
-  defer rows.Close()
   if nil != err {
     return err
   }
+  defer rows.Close()
 
   // Marshal rows
   for rows.Next() {
