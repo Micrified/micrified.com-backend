@@ -87,7 +87,6 @@ func (p *Penalty) Refresh (c *Config) Penalty {
   if duration < c.Limit {
     increment = 1
   }
-  fmt.Printf("Duration: %v\n", duration)
   return Penalty {
     Deadline: time.Now().UTC().Add(time.Duration(duration) * time.Second),
     Count:    p.Count + increment,
