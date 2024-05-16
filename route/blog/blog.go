@@ -184,10 +184,10 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
 
   // Extract row
   rows, err := c.Service.Database.DB.Query(q, blog_id)
-  defer rows.Close()
   if nil != err {
     return fail(err, http.StatusInternalServerError)
   }
+  defer rows.Close()
 
   // Verify entry exists
   if !rows.Next() {
