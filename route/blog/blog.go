@@ -125,7 +125,7 @@ func (c *Controller) Timeout () time.Duration {
 
 // ListController
 
-func (c *ListController) Route() string {
+func (c *ListController) Route () string {
   return "/" + c.Name
 }
 
@@ -136,7 +136,7 @@ func (c *ListController) Handler (s string) route.Method {
   return nil
 }
 
-func (c *ListController) Timeout() time.Duration {
+func (c *ListController) Timeout () time.Duration {
   return c.Limit
 }
 
