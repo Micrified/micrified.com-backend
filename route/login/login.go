@@ -172,6 +172,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     if nil != err {
       return false, err
     }
+    defer rows.Close()
     if !rows.Next() { // No error implies non-infrastructure related error
       return false, nil
     }
