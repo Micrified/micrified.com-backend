@@ -58,7 +58,7 @@ type ListController route.ControllerType[blogDataType]
 
 var blogData blogDataType = blogDataType {
   TimeFormat:   "2006-01-02 15:04:05",
-  IndexTable:    "blog_pages",
+  IndexTable:   "blog_pages",
   ContentTable: "page_content",
 }
 

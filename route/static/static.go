@@ -8,8 +8,8 @@ import (
   "fmt"
   "net/http"
   "micrified.com/route"
-//  "micrified.com/service/auth"
-//  "micrified.com/service/database"
+  "micrified.com/service/auth"
+  "micrified.com/service/database"
   "time"
 )
 
@@ -150,8 +150,81 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   return re.Marshal(route.ContentTypeJSON, &page)
 }
 
+type StaticPost struct {
+  Name string `json:"name"`
+  Body string `json:"body"`
+}
+
+type StaticPostResponse struct {
+  Name    string `json:"name"`
+  Body    string `json:"body"`
+  Created string `json:"created"`
+  Updated string `json:"updated"`
+}
+
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
-  return re.Unimplemented()
+  var (
+    body      []byte                    = []byte{}
+    err       error                     = nil
+    ip        string                    = x.Value(user.UserIPKey).(string)
+    post      auth.AuthData[StaticPost] = auth.AuthData[StaticPost]{}
+    timeStamp time.Time                 = time.Now().UTC()
+  )
+
+  fail := func(err error, status int) error {
+    re.Status = status
+    return err
+  }
+
+  // Read request body
+  if body, err = ioutil.ReadAll(rq.Body); nil != err {
+    return fail(err, http.StatusInternalServerError)
+  }
+
+  // Unmarshal to type
+  if err = json.Unmarshal(body, &post); nil != err {
+    return fail(err, http.StatusBadRequest)
+  }
+
+  // Check if authorized
+  if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
+    return fail(err, http.StatusUnauthorized)
+  }
+
+  // Define insert content
+  insertBody := func (lastResult sql.Result, t *sql.Tx) (sql.Result, error) {
+    q := fmt.Sprintf("INSERT INTO %s (created,updated,body) VALUES (?,?,?)",
+      c.Data.ContentTable)
+    return t.ExecContext(c.Service.Database.Context, q, timeStamp, timeStamp,
+      post.Data.Body)
+  }
+
+  // Define insert record
+  insertRecord := func (lastResult sql.Result, t *sql.Tx) (sql.Result, error) {
+    id, err := lastResult.LastInsertId()
+    if nil != err {
+      return nil, err
+    }
+    q := fmt.Sprintf("INSERT INTO %s (url_hash,content_id) " +
+                     "VALUES (UNHEX(MD5(?)),?)",
+      c.Data.IndexTable)
+    return t.ExecContext(c.Service.Database.Context, q, post.Data.Name, id)
+  }
+
+  // Execute sequenced insert operations; get back result
+  r, err := c.Service.Database.Transaction(insertBody, insertRecord)
+  if nil != err {
+    return fail(err, http.StatusInternalServerError)
+  }
+
+  // Write to buffer and return any encoding error
+  return re.Marshal(route.ContentTypeJSON,
+    &StaticPostResponse {
+      Name:    post.Name,
+      Body:    post.Body,
+      Created: timeStamp.Format(c.Data.TimeFormat),
+      Updated: timeStamp.Format(c.Data.TimeFormat),
+  })
 }
 
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
