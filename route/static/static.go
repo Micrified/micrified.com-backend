@@ -70,7 +70,10 @@ func NewController (s route.Service) Controller {
   return Controller {
     Name:    RouteName,
     Methods: map[string]route.Method {
-      http.MethodGet: route.Restful.Get,
+      http.MethodGet:    route.Restful.Get,
+      http.MethodPost:   route.Restful.Post,
+      http.MethodPut:    route.Restful.Put,
+      http.MethodDelete: route.Restful.Delete,
     },
     Service: s,
     Limit:   5 * time.Second,
@@ -148,25 +151,18 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   return re.Marshal(route.ContentTypeJSON, &page)
 }
 
-type StaticPost struct {
-  Name string `json:"name"`
+type Post struct {
   Body string `json:"body"`
-}
-
-type StaticPostResponse struct {
-  Name    string `json:"name"`
-  Body    string `json:"body"`
-  Created string `json:"created"`
-  Updated string `json:"updated"`
 }
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte                    = []byte{}
-    err       error                     = nil
-    ip        string                    = x.Value(user.UserIPKey).(string)
-    post      auth.AuthData[StaticPost] = auth.AuthData[StaticPost]{}
-    timeStamp time.Time                 = time.Now().UTC().Truncate(time.Second)
+    body      []byte              = []byte{}
+    err       error               = nil
+    ip        string              = x.Value(user.UserIPKey).(string)
+    name      string              = rq.PathValue("name")
+    post      auth.AuthData[Post] = auth.AuthData[Post]{}
+    timeStamp time.Time           = time.Now().UTC().Truncate(time.Second)
   )
 
   // Read request body
@@ -201,7 +197,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     q := fmt.Sprintf("INSERT INTO %s (url_hash,content_id) " +
                      "VALUES (UNHEX(MD5(?)),?)",
 		     c.Data.IndexTable)
-    return t.ExecContext(c.Service.Database.Context, q, post.Data.Name, id)
+    return t.ExecContext(c.Service.Database.Context, q, name, id)
   }
 
   // Execute sequenced insert operations; get back result
@@ -220,34 +216,20 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
       http.StatusInternalServerError)
   }
 
-  // Write to buffer and return any encoding error
-  return re.Marshal(route.ContentTypeJSON,
-    &StaticPostResponse {
-      Name:    post.Data.Name,
-      Body:    post.Data.Body,
-      Created: timeStamp.Format(c.Data.TimeFormat),
-      Updated: timeStamp.Format(c.Data.TimeFormat),
-  })
+  return nil
 }
 
-type StaticPut struct {
-  Name string `json:"name"`
+type Put struct {
   Body string `json:"body"`
-}
-
-type StaticPutResponse struct {
-  Name    string `json:"name"`
-  Body    string `json:"body"`
-  Updated string `json:"updated"`
 }
 
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte                   = []byte{}
-    err       error                    = nil
-    ip        string                   = x.Value(user.UserIPKey).(string)
-    put       auth.AuthData[StaticPut] = auth.AuthData[StaticPut]{}
-    timeStamp time.Time                = time.Now().UTC().Truncate(time.Second)
+    body      []byte             = []byte{}
+    err       error              = nil
+    ip        string             = x.Value(user.UserIPKey).(string)
+    name      string             = rq.PathValue("name")
+    put       auth.AuthData[Put] = auth.AuthData[Put]{}
   )
 
   // Define update record
@@ -257,8 +239,7 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
 		     "SET b.body = ? " +
 		     "WHERE a.url_hash = UNHEX(MD5(?))", 
 		     c.Data.IndexTable, c.Data.ContentTable)
-    return conn.ExecContext(c.Service.Database.Context, q, put.Data.Body,
-      put.Data.Name)
+    return conn.ExecContext(c.Service.Database.Context, q, put.Data.Body, name)
   }
 
   // Read request body
@@ -284,25 +265,18 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
 
   // Don't verify rows affected (could be none if no change made)
 
-  // No difference is needed here in the return type
-  return re.Marshal(route.ContentTypeJSON,
-    &StaticPutResponse {
-      Name:    put.Data.Name,
-      Body:    put.Data.Body,
-      Updated: timeStamp.Format(c.Data.TimeFormat),
-  })
+  return nil
 }
 
-type StaticDelete struct {
-  Name string `json:"name"`
-}
+type Delete struct {}
 
 func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body []byte                      = []byte{}
-    err  error                       = nil
-    ip   string                      = x.Value(user.UserIPKey).(string)
-    del  auth.AuthData[StaticDelete] = auth.AuthData[StaticDelete]{}
+    body []byte                = []byte{}
+    del  auth.AuthData[Delete] = auth.AuthData[Delete]{}
+    err  error                 = nil
+    ip   string                = x.Value(user.UserIPKey).(string)
+    name string                = rq.PathValue("name")
   )
 
   // Define delete record
@@ -311,7 +285,7 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
                      "ON a.content_id = b.id " +
 		     "WHERE a.url_hash = UNHEX(MD5(?))",
 		     c.Data.IndexTable, c.Data.ContentTable)
-    return conn.ExecContext(c.Service.Database.Context, q, del.Data.Name)
+    return conn.ExecContext(c.Service.Database.Context, q, name)
   }
 
   // Read request body

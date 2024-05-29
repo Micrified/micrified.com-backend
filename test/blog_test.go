@@ -128,7 +128,6 @@ func TestBlog (t *testing.T) {
 
   // getBlog performs a GET request to the blog endpoint
   getBlog := func(blog_id string, blogResponse *blog.BlogResponse) error {
-    fmt.Printf("getBlog(blog_id = %s)\n", blog_id)
     req, err := http.NewRequest(http.MethodGet, BlogURL, nil)
     if nil != err {
       return err
