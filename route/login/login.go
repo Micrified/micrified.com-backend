@@ -137,24 +137,19 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     login   LoginCredential     = LoginCredential{}
   )
 
-  fail := func (err error, status int) error {
-    re.Status = status
-    return err
-  }
-
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &login); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if a retry penalty exists (IP must exist)
   if c.Service.Auth.Penalised(ip) {
-    return fail(fmt.Errorf("Try again later"), http.StatusTooManyRequests)
+    return re.ErrorWithStatus(fmt.Errorf("Try again later"), http.StatusTooManyRequests)
   }
 
   // Extract stored login credentials
@@ -187,7 +182,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     login.Period, doAuth)
   if err != nil {
     // TODO: Don't leak info here
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Wipe penalty and create session if OK; else penalise and return error
@@ -195,7 +190,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     c.Service.Auth.NoPenalty(ip)
   } else {
     c.Service.Auth.Penalise(ip)
-    return fail(fmt.Errorf("Bad credentials"), http.StatusUnauthorized)
+    return re.ErrorWithStatus(fmt.Errorf("Bad credentials"), http.StatusUnauthorized)
   }
 
   // Compose response

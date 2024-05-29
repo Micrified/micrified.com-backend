@@ -5,11 +5,14 @@ package static
 
 import (
   "context"
+  "database/sql"
+  "encoding/json"
   "fmt"
-  "net/http"
+  "io/ioutil"
+  "micrified.com/internal/user"
   "micrified.com/route"
   "micrified.com/service/auth"
-  "micrified.com/service/database"
+  "net/http"
   "time"
 )
 
@@ -119,11 +122,6 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
     err  error       = nil
   )
 
-  fail := func(err error, status int) error {
-    re.Status = status
-    return err
-  }
-
   q := fmt.Sprintf("SELECT a.body, a.created, a.updated FROM %s AS a " +
                    "INNER JOIN %s AS b " +
 		   "ON a.id = b.content_id " +
@@ -133,18 +131,18 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   // Extract row
   rows, err := c.Service.Database.DB.Query(q, name)
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
   defer rows.Close()
 
   // Verify entry exists
   if !rows.Next() {
-    return fail(fmt.Errorf("Page %s not found", name), http.StatusNotFound)
+    return re.ErrorWithStatus(fmt.Errorf("Page %s not found", name), http.StatusNotFound)
   }
 
   // Marshal rows
   if err = rows.Scan(&page.Body, &page.Created, &page.Updated); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   return re.Marshal(route.ContentTypeJSON, &page)
@@ -168,27 +166,22 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     err       error                     = nil
     ip        string                    = x.Value(user.UserIPKey).(string)
     post      auth.AuthData[StaticPost] = auth.AuthData[StaticPost]{}
-    timeStamp time.Time                 = time.Now().UTC()
+    timeStamp time.Time                 = time.Now().UTC().Truncate(time.Second)
   )
-
-  fail := func(err error, status int) error {
-    re.Status = status
-    return err
-  }
 
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &post); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
   if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
   // Define insert content
@@ -207,32 +200,151 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     }
     q := fmt.Sprintf("INSERT INTO %s (url_hash,content_id) " +
                      "VALUES (UNHEX(MD5(?)),?)",
-      c.Data.IndexTable)
+		     c.Data.IndexTable)
     return t.ExecContext(c.Service.Database.Context, q, post.Data.Name, id)
   }
 
   // Execute sequenced insert operations; get back result
   r, err := c.Service.Database.Transaction(insertBody, insertRecord)
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  }
+
+  // Verify the right number of rows were affected
+  n, err := r.RowsAffected()
+  if nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  } else if 1 != n {
+    return re.ErrorWithStatus(
+      fmt.Errorf("Unexpected result (expected 1 row affected, got %d)", n),
+      http.StatusInternalServerError)
   }
 
   // Write to buffer and return any encoding error
   return re.Marshal(route.ContentTypeJSON,
     &StaticPostResponse {
-      Name:    post.Name,
-      Body:    post.Body,
+      Name:    post.Data.Name,
+      Body:    post.Data.Body,
       Created: timeStamp.Format(c.Data.TimeFormat),
       Updated: timeStamp.Format(c.Data.TimeFormat),
   })
 }
 
+type StaticPut struct {
+  Name string `json:"name"`
+  Body string `json:"body"`
+}
+
+type StaticPutResponse struct {
+  Name    string `json:"name"`
+  Body    string `json:"body"`
+  Updated string `json:"updated"`
+}
+
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
-  return re.Unimplemented()
+  var (
+    body      []byte                   = []byte{}
+    err       error                    = nil
+    ip        string                   = x.Value(user.UserIPKey).(string)
+    put       auth.AuthData[StaticPut] = auth.AuthData[StaticPut]{}
+    timeStamp time.Time                = time.Now().UTC().Truncate(time.Second)
+  )
+
+  // Define update record
+  updateRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
+    q := fmt.Sprintf("UPDATE %s AS a INNER JOIN %s AS b " +
+                     "ON a.content_id = b.id " +
+		     "SET b.body = ? " +
+		     "WHERE a.url_hash = UNHEX(MD5(?))", 
+		     c.Data.IndexTable, c.Data.ContentTable)
+    return conn.ExecContext(c.Service.Database.Context, q, put.Data.Body,
+      put.Data.Name)
+  }
+
+  // Read request body
+  if body, err = ioutil.ReadAll(rq.Body); nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  }
+
+  // Unmarshal to type
+  if err = json.Unmarshal(body, &put); nil != err {
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
+  }
+
+  // Check if authorized
+  if err = c.Service.Auth.Authorized(ip, put.Username, put.Secret); nil != err {
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
+  }
+
+  // Execute sequenced connection operations; get back result
+  _, err = c.Service.Database.Connection(updateRecord)
+  if nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  }
+
+  // Don't verify rows affected (could be none if no change made)
+
+  // No difference is needed here in the return type
+  return re.Marshal(route.ContentTypeJSON,
+    &StaticPutResponse {
+      Name:    put.Data.Name,
+      Body:    put.Data.Body,
+      Updated: timeStamp.Format(c.Data.TimeFormat),
+  })
+}
+
+type StaticDelete struct {
+  Name string `json:"name"`
 }
 
 func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Result) error {
-  return re.Unimplemented()
-}
+  var (
+    body []byte                      = []byte{}
+    err  error                       = nil
+    ip   string                      = x.Value(user.UserIPKey).(string)
+    del  auth.AuthData[StaticDelete] = auth.AuthData[StaticDelete]{}
+  )
 
+  // Define delete record
+  deleteRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
+    q := fmt.Sprintf("DELETE a, b FROM %s AS a INNER JOIN %s AS b " +
+                     "ON a.content_id = b.id " +
+		     "WHERE a.url_hash = UNHEX(MD5(?))",
+		     c.Data.IndexTable, c.Data.ContentTable)
+    return conn.ExecContext(c.Service.Database.Context, q, del.Data.Name)
+  }
+
+  // Read request body
+  if body, err = ioutil.ReadAll(rq.Body); nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  }
+
+  // Unmarshal to type
+  if err = json.Unmarshal(body, &del); nil != err {
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
+  }
+
+  // Check if authorized
+  if err = c.Service.Auth.Authorized(ip, del.Username, del.Secret); nil != err {
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
+  }
+
+  // Execute sequenced connection operations; get back result
+  r, err := c.Service.Database.Connection(deleteRecord)
+  if nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  } 
+
+  // Verify the right number of rows were affected
+  n, err := r.RowsAffected()
+  if nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  } else if 2 != n {
+    return re.ErrorWithStatus(
+      fmt.Errorf("Unexpected result (expected 2 rows affected, got %d)", n), 
+      http.StatusInternalServerError)
+  }
+
+  return nil
+}
 

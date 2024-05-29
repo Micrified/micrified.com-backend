@@ -117,29 +117,24 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     logout auth.AuthData[LogoutCredential] = auth.AuthData[LogoutCredential]{}
   )
 
-  fail := func(err error, status int) error {
-    re.Status = status
-    return err
-  }
-
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &logout); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
   if err = c.Service.Auth.Authorized(ip, logout.Username, logout.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
   // Remove the session 
   if err = c.Service.Auth.Deauthenticate(logout.Username); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // No content is to be returned, so HTTP status code 204 is expected

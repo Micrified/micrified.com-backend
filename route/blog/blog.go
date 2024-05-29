@@ -167,11 +167,6 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
     err     error        = nil
   )
 
-  fail := func(err error, status int) error {
-    re.Status = status
-    return err
-  }
-
   q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.body, b.created, b.updated " + 
                    "FROM %s AS a INNER JOIN %s AS b " +
 		   "ON a.content_id = b.id " + 
@@ -179,25 +174,27 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
 
   // Validate ID
   if blog_id, err = strconv.Atoi(rq.URL.Query().Get("id")); nil != err {
-    return fail(fmt.Errorf("Invalid query parameter"), http.StatusBadRequest)
+    return re.ErrorWithStatus(
+      fmt.Errorf("Invalid query parameter"), http.StatusBadRequest)
   }
 
   // Extract row
   rows, err := c.Service.Database.DB.Query(q, blog_id)
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
   defer rows.Close()
 
   // Verify entry exists
   if !rows.Next() {
-    return fail(fmt.Errorf("Blog %s not found", blog_id), http.StatusNotFound)
+    return re.ErrorWithStatus(
+      fmt.Errorf("Blog %s not found", blog_id), http.StatusNotFound)
   }
 
   // Marshal rows
   if err = rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Tag,
     &blog.Body, &blog.Created, &blog.Updated); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Write to buffer and return any encoding error
@@ -227,27 +224,22 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     err       error                   = nil
     ip        string                  = x.Value(user.UserIPKey).(string)
     post      auth.AuthData[BlogPost] = auth.AuthData[BlogPost]{}
-    timeStamp time.Time               = time.Now().UTC()
+    timeStamp time.Time               = time.Now().UTC().Truncate(time.Second)
   )
 
-  fail := func (err error, status int) error {
-    re.Status = status
-    return err
-  }
-  
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &post); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
   if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
     
   // Define insert content
@@ -273,13 +265,23 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
   // Execute sequenced insert operations; get back result
   r, err := c.Service.Database.Transaction(insertBody, insertRecord)
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  }
+
+  // Verify the right number of rows were affected
+  n, err := r.RowsAffected()
+  if nil != err {
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
+  } else if 1 != n {
+    return re.ErrorWithStatus(
+      fmt.Errorf("Unexpected result (expected 1 row affected, got %d)", n),
+      http.StatusInternalServerError)
   }
 
   // Get the record ID
   id, err := r.LastInsertId()
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Write to buffer and return any encoding error
@@ -318,13 +320,8 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
     err       error                  = nil
     ip        string                 = x.Value(user.UserIPKey).(string)
     post      auth.AuthData[BlogPut] = auth.AuthData[BlogPut]{}
-    timeStamp time.Time              = time.Now().UTC()
+    timeStamp time.Time              = time.Now().UTC().Truncate(time.Second)
   )
-
-  fail := func (err error, status int) error {
-    re.Status = status
-    return err
-  }
 
   // Define update record
   updateRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
@@ -337,33 +334,26 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
 
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &post); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
   if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
   // Execute sequenced connection operations; get back result
-  r, err := c.Service.Database.Connection(updateRecord)
+  _, err = c.Service.Database.Connection(updateRecord)
   if nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
-  // Verify the right number of rows were affected
-  n, err := r.RowsAffected()
-  if nil != err {
-    return fail(err, http.StatusInternalServerError)
-  } else if 0 == n {
-    return fail(fmt.Errorf("Unexpected database result (no rows modified)"), 
-      http.StatusInternalServerError)
-  }
+  // Don't verify rows affected (could be none if no change made)
 
   // No difference is needed here in the return type
   return re.Marshal(route.ContentTypeJSON,
@@ -374,7 +364,7 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
       Tag:      post.Data.Tag,
       Updated:  timeStamp.Format(c.Data.TimeFormat),
       Body:     post.Data.Body,
-    })
+  })
 }
 
 type BlogDelete struct {
@@ -389,11 +379,6 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
     post  auth.AuthData[BlogDelete] = auth.AuthData[BlogDelete]{}
   )
 
-  fail := func (err error, status int) error {
-    re.Status = status
-    return err
-  }
-
   // Define delete record
   deleteRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("DELETE a, b FROM %s AS a INNER JOIN %s AS b " +
@@ -404,33 +389,33 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
 
   // Read request body
   if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Unmarshal to type
   if err = json.Unmarshal(body, &post); nil != err {
-    return fail(err, http.StatusBadRequest)
+    return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
   if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
-    return fail(err, http.StatusUnauthorized)
+    return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
-
 
   // Execute sequenced connection operations; get back result
   r, err := c.Service.Database.Connection(deleteRecord)
   if nil != err {
-    fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Verify the right number of rows were affected
   n, err := r.RowsAffected()
   if nil != err {
-    fail(err, http.StatusInternalServerError)
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   } else if 2 != n {
-    fail(fmt.Errorf("Unexpected database result (expected %d rows affected, got %d)",
-      2, n), http.StatusInternalServerError)
+    return re.ErrorWithStatus(
+      fmt.Errorf("Unexpected result (expected 2 rows affected, got %d)", n), 
+      http.StatusInternalServerError)
   }
 
   return nil
@@ -461,7 +446,7 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
   // Extract rows
   rows, err := c.Service.Database.DB.Query(q)
   if nil != err {
-    return err
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
   defer rows.Close()
 
@@ -477,7 +462,7 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
 
   // Check error
   if nil != err {
-    return err
+    return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
   // Write to buffer and return any encoding error
