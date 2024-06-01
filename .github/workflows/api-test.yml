@@ -1,0 +1,15 @@
+name: Go API tests
+run-name: ${{ github.actor }} is executing all Go tests!
+on: [push]
+jobs:
+  Execute-Go-Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Evaluating ${{ github.ref }} in ${{ github.repository }}"
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: echo "Cloned ${{ github.repository }} to runner!"
+      - name: List files
+        run: |
+          ls ${{ github.workspace }}
+      - run: echo "Current job status: ${{ job.status }}"
