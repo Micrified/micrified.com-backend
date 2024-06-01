@@ -2,14 +2,24 @@ name: Go API tests
 run-name: ${{ github.actor }} is executing all Go tests!
 on: [push]
 jobs:
-  Execute-Go-Tests:
+  setup:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Evaluating ${{ github.ref }} in ${{ github.repository }}"
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - run: echo "Cloned ${{ github.repository }} to runner!"
-      - name: List files
+      - uses: actions/checkout@v4
+      - run: echo "Cloned ${{ github.ref }} and configuring environment"
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.22.3'
+      - name: Compiling
         run: |
-          ls ${{ github.workspace }}
-      - run: echo "Current job status ${{ job.status }}"
+          go build
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Running tests, vroom vroom!"
+
