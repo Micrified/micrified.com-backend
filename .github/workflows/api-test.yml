@@ -12,4 +12,4 @@ jobs:
       - name: List files
         run: |
           ls ${{ github.workspace }}
-      - run: echo "Current job status: ${{ job.status }}"
+      - run: echo "Current job status ${{ job.status }}"
