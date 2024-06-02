@@ -191,11 +191,11 @@ func TestStatic (t *testing.T) {
   }
 
   // LOGOUT
-  logoutFunc := Request[any, auth.Frame[logout.LogoutCredential]]
-  logoutPost := auth.Frame[logout.LogoutCredential]{
+  logoutFunc := Request[any, auth.Frame[logout.Post]]
+  logoutPost := auth.Frame[logout.Post]{
     Username: username,
     Secret:   sessionCredential.Secret,
-    Data:     logout.LogoutCredential{},
+    Data:     logout.Post{},
   }
   err = logoutFunc(LogoutURL, http.MethodPost, http.StatusNoContent, logoutPost, nil)
   if nil != err {
