@@ -1,0 +1,16 @@
+{
+  "Auth" : {
+    "Base"   : 2,
+    "Factor" : 2,
+    "Limit"  : 8,
+    "Retry"  : 3
+  },
+  "Database" : {
+    "UnixSocket" : "/opt/local/var/run/mysql8/mysqld.sock",
+    "Username"   : "tester",
+    "Password"   : "password",
+    "Database"   : "main"
+  },
+  "Host" : "localhost",
+  "Port" : "3070"
+}
