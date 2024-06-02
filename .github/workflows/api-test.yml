@@ -27,4 +27,10 @@ jobs:
       - name: Build
         run: |
           go build
+      - name: Test
+        run: |
+          ./server config.json &
+          go test -v test/auth_test.go
+          go test -v test/blog_test.go 
+          go test -v test/static_test.go
 
