@@ -1,6 +1,10 @@
 name: Go API tests
 run-name: ${{ github.actor }} is executing all Go tests!
 on: [push]
+env:
+  TEST_HOSTNAME: "http://localhost:3070"
+  TEST_USERNAME: "tester"
+  TEST_PASSPHRASE: "password"
 jobs:
   go-test:
     runs-on: ubuntu-latest
@@ -9,15 +13,17 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '^1.22.3'
-      - name: Setup MySQL
+      - name: Install MySQL
         uses: shogo82148/actions-setup-mysql@v1.34.0
         with:
           distribution: "mysql"
           mysql-version: "8.0"
           auto-start: "true"
           root-password: "password"
-          user: "tester"
-          password: "password"
+      - name: Setup SQL
+        run: |
+          mysql -uroot -ppassword < data/db_schema.sql
+          mysql -uroot -ppassword < data/db_setup.sql
       - name: Build
         run: |
           go build

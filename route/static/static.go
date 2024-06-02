@@ -54,8 +54,8 @@ type Controller route.ControllerType[staticDataType]
 
 var staticData staticDataType = staticDataType {
   TimeFormat:   "2006-01-02 15:04:05",
-  IndexTable:   "static_pages",
-  ContentTable: "page_content",
+  IndexTable:   "static",
+  ContentTable: "page",
 }
 
 
@@ -127,8 +127,8 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
 
   q := fmt.Sprintf("SELECT a.body, a.created, a.updated FROM %s AS a " +
                    "INNER JOIN %s AS b " +
-		   "ON a.id = b.content_id " +
-		   "WHERE b.url_hash = unhex(md5(?))",
+		   "ON a.id = b.page " +
+		   "WHERE b.hash = unhex(md5(?))",
 		   c.Data.ContentTable, c.Data.IndexTable)
 
   // Extract row
@@ -194,7 +194,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     if nil != err {
       return nil, err
     }
-    q := fmt.Sprintf("INSERT INTO %s (url_hash,content_id) " +
+    q := fmt.Sprintf("INSERT INTO %s (hash,page) " +
                      "VALUES (UNHEX(MD5(?)),?)",
 		     c.Data.IndexTable)
     return t.ExecContext(c.Service.Database.Context, q, name, id)
@@ -235,9 +235,9 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
   // Define update record
   updateRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("UPDATE %s AS a INNER JOIN %s AS b " +
-                     "ON a.content_id = b.id " +
+                     "ON a.page = b.id " +
 		     "SET b.body = ? " +
-		     "WHERE a.url_hash = UNHEX(MD5(?))", 
+		     "WHERE a.hash = UNHEX(MD5(?))", 
 		     c.Data.IndexTable, c.Data.ContentTable)
     return conn.ExecContext(c.Service.Database.Context, q, put.Data.Body, name)
   }
@@ -282,8 +282,8 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
   // Define delete record
   deleteRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("DELETE a, b FROM %s AS a INNER JOIN %s AS b " +
-                     "ON a.content_id = b.id " +
-		     "WHERE a.url_hash = UNHEX(MD5(?))",
+                     "ON a.page = b.id " +
+		     "WHERE a.hash = UNHEX(MD5(?))",
 		     c.Data.IndexTable, c.Data.ContentTable)
     return conn.ExecContext(c.Service.Database.Context, q, name)
   }

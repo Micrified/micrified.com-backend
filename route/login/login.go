@@ -55,8 +55,8 @@ type Controller route.ControllerType[loginDataType]
 
 var loginData loginDataType = loginDataType {
   TimeFormat:      "2006-01-02 15:04:05",
-  UserTable:       "users",
-  CredentialTable: "credentials",
+  UserTable:       "actor",
+  CredentialTable: "credential",
 }
 
 
@@ -115,7 +115,7 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
 }
 
 type LoginCredential struct {
-  Username        string `json:"userid"`
+  Username        string `json:"username"`
   Passphrase      string `json:"passphrase"`
   Period          string `json:"period"`
 }
@@ -155,8 +155,8 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
   // Extract stored login credentials
   q := fmt.Sprintf("SELECT b.hash, b.salt " +
                    "FROM %s AS a INNER JOIN %s AS b " +
-		   "ON a.id = b.user_id " +
-		   "WHERE a.username = ?", 
+		   "ON a.id = b.actor " +
+		   "WHERE a.name = ?", 
 		   c.Data.UserTable, c.Data.CredentialTable)
 
   // Define the authentication routine

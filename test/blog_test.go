@@ -162,24 +162,22 @@ func TestBlog (t *testing.T) {
   }
 
   // POST
-  postFunc := Request[blog.BlogPostResponse, auth.AuthData[blog.BlogPost]]
-  blogPost, blogPostResponse := auth.AuthData[blog.BlogPost] {
+  postFunc := Request[blog.PostResponse, auth.AuthData[blog.Post]]
+  blogPost, blogPostResponse := auth.AuthData[blog.Post] {
     Username: username,
     Secret:   sessionCredential.Secret,
-    Data: blog.BlogPost {
+    Data: blog.Post {
       Title:    "Nothing Gold Can Stay",
       Subtitle: "Robert Frost",
-      Tag:      "Poetry",                     
       Body:     "Nature's first green is gold",
     },
-  }, blog.BlogPostResponse{}
+  }, blog.PostResponse{}
   err = postFunc(BlogURL, http.MethodPost, http.StatusOK, blogPost, &blogPostResponse)
   if nil != err {
     t.Fatalf("Blog POST failed: %v", err)
   }
   if blogPost.Data.Title != blogPostResponse.Title ||
      blogPost.Data.Subtitle != blogPostResponse.Subtitle ||
-     blogPost.Data.Tag != blogPostResponse.Tag ||
      blogPost.Data.Body != blogPostResponse.Body {
     t.Fatalf("POST Response content not as expected!")
   }
@@ -192,7 +190,6 @@ func TestBlog (t *testing.T) {
   }
   if blogResponse.Title    != blogPostResponse.Title    ||
      blogResponse.Subtitle != blogPostResponse.Subtitle ||
-     blogResponse.Tag      != blogPostResponse.Tag      ||
      blogResponse.Body     != blogPostResponse.Body     ||
      blogResponse.Created  != blogPostResponse.Created  ||
      blogResponse.Updated  != blogPostResponse.Updated {
@@ -200,18 +197,17 @@ func TestBlog (t *testing.T) {
   }
 
   // PUT
-  putFunc := Request[blog.BlogPutResponse, auth.AuthData[blog.BlogPut]]
-  blogPut, blogPutResponse := auth.AuthData[blog.BlogPut] {
+  putFunc := Request[blog.PutResponse, auth.AuthData[blog.Put]]
+  blogPut, blogPutResponse := auth.AuthData[blog.Put] {
     Username: username,
     Secret:   sessionCredential.Secret,
-    Data: blog.BlogPut {
+    Data: blog.Put {
       ID:       blogPostResponse.ID,
       Title:    "Auguries of Innocence",
       Subtitle: "William Blake",
-      Tag:      "Poetry",
       Body:     "To see a World in a Grain of Sand",
     },
-  }, blog.BlogPutResponse{}
+  }, blog.PutResponse{}
   err = putFunc(BlogURL, http.MethodPut, http.StatusOK, blogPut, &blogPutResponse)
 
   if nil != err {
@@ -220,7 +216,6 @@ func TestBlog (t *testing.T) {
   if blogPut.Data.ID != blogPutResponse.ID ||
      blogPut.Data.Title != blogPutResponse.Title ||
      blogPut.Data.Subtitle != blogPutResponse.Subtitle ||
-     blogPut.Data.Tag != blogPutResponse.Tag ||
      blogPut.Data.Body != blogPutResponse.Body {
     t.Fatalf("PUT Response content not as expected!")
   }
@@ -232,17 +227,16 @@ func TestBlog (t *testing.T) {
   }
   if blogResponse.Title    != blogPutResponse.Title    ||
      blogResponse.Subtitle != blogPutResponse.Subtitle ||
-     blogResponse.Tag      != blogPutResponse.Tag      ||
      blogResponse.Body     != blogPutResponse.Body {
     t.Fatalf("GET blog content not as expected!")
   }
 
   // DELETE
-  delFunc := Request[any, auth.AuthData[blog.BlogDelete]]
-  blogDelete := auth.AuthData[blog.BlogDelete] {
+  delFunc := Request[any, auth.AuthData[blog.Delete]]
+  blogDelete := auth.AuthData[blog.Delete] {
     Username: username,
     Secret:   sessionCredential.Secret,
-    Data: blog.BlogDelete {
+    Data: blog.Delete {
       ID: blogPostResponse.ID,
     },
   }

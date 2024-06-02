@@ -58,8 +58,8 @@ type ListController route.ControllerType[blogDataType]
 
 var blogData blogDataType = blogDataType {
   TimeFormat:   "2006-01-02 15:04:05",
-  IndexTable:   "blog_pages",
-  ContentTable: "page_content",
+  IndexTable:   "blog",
+  ContentTable: "page",
 }
 
 
@@ -154,7 +154,6 @@ type BlogResponse struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Body     string `json:"body"`
   Created  string `json:"created"`
   Updated  string `json:"updated"`
@@ -167,9 +166,9 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
     err     error        = nil
   )
 
-  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.body, b.created, b.updated " + 
+  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, b.body, b.created, b.updated " + 
                    "FROM %s AS a INNER JOIN %s AS b " +
-		   "ON a.content_id = b.id " + 
+		   "ON a.page = b.id " + 
 		   "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
 
   // Validate ID
@@ -192,8 +191,8 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   }
 
   // Marshal rows
-  if err = rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Tag,
-    &blog.Body, &blog.Created, &blog.Updated); nil != err {
+  if err = rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Body, 
+    &blog.Created, &blog.Updated); nil != err {
     return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 
@@ -201,18 +200,16 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   return re.Marshal(route.ContentTypeJSON, &blog)
 }
 
-type BlogPost struct {
+type Post struct {
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Body     string `json:"body"`
 }
 
-type BlogPostResponse struct {
+type PostResponse struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Body     string `json:"body"`
   Created  string `json:"created"`
   Updated  string `json:"updated"`
@@ -220,11 +217,11 @@ type BlogPostResponse struct {
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte                  = []byte{}
-    err       error                   = nil
-    ip        string                  = x.Value(user.UserIPKey).(string)
-    post      auth.AuthData[BlogPost] = auth.AuthData[BlogPost]{}
-    timeStamp time.Time               = time.Now().UTC().Truncate(time.Second)
+    body      []byte              = []byte{}
+    err       error               = nil
+    ip        string              = x.Value(user.UserIPKey).(string)
+    post      auth.AuthData[Post] = auth.AuthData[Post]{}
+    timeStamp time.Time           = time.Now().UTC().Truncate(time.Second)
   )
 
   // Read request body
@@ -256,10 +253,10 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     if nil != err {
       return nil, err
     }
-    q := fmt.Sprintf("INSERT INTO %s (title,subtitle,tag,content_id) " +
-      "VALUES (?,?,?,?)", c.Data.IndexTable)
+    q := fmt.Sprintf("INSERT INTO %s (title,subtitle,page) VALUES (?,?,?)", 
+      c.Data.IndexTable)
     return t.ExecContext(c.Service.Database.Context, q, post.Data.Title, 
-      post.Data.Subtitle, post.Data.Tag, id)
+      post.Data.Subtitle, id)
   }
 
   // Execute sequenced insert operations; get back result
@@ -286,50 +283,47 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
 
   // Write to buffer and return any encoding error
   return re.Marshal(route.ContentTypeJSON, 
-    &BlogPostResponse {
+    &PostResponse {
       ID:       strconv.FormatInt(id, 10),
       Title:    post.Data.Title,
       Subtitle: post.Data.Subtitle,
-      Tag:      post.Data.Tag,
       Body:     post.Data.Body,
       Created:  timeStamp.Format(c.Data.TimeFormat),
       Updated:  timeStamp.Format(c.Data.TimeFormat),
     })
 }
 
-type BlogPut struct {
+type Put struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Body     string `json:"body"`
 }
 
-type BlogPutResponse struct {
+type PutResponse struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Updated  string `json:"updated"`
   Body     string `json:"body"`
 }
 
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte                 = []byte{}
-    err       error                  = nil
-    ip        string                 = x.Value(user.UserIPKey).(string)
-    post      auth.AuthData[BlogPut] = auth.AuthData[BlogPut]{}
-    timeStamp time.Time              = time.Now().UTC().Truncate(time.Second)
+    body      []byte             = []byte{}
+    err       error              = nil
+    ip        string             = x.Value(user.UserIPKey).(string)
+    put       auth.AuthData[Put] = auth.AuthData[Put]{}
+    timeStamp time.Time          = time.Now().UTC().Truncate(time.Second)
   )
 
   // Define update record
   updateRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
-    q := fmt.Sprintf("UPDATE %s AS a INNER JOIN %s AS b ON a.content_id = b.id " +
+    q := fmt.Sprintf("UPDATE %s AS a INNER JOIN %s AS b ON a.page = b.id " +
                      "SET a.title = ?, a.subtitle = ?, b.updated = ?, b.body = ? " +
 		     "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
-    return conn.ExecContext(c.Service.Database.Context, q, post.Data.Title, 
-      post.Data.Subtitle, timeStamp, post.Data.Body, post.Data.ID)
+    return conn.ExecContext(c.Service.Database.Context, q, put.Data.Title, 
+      put.Data.Subtitle, timeStamp, put.Data.Body, put.Data.ID)
   }
 
   // Read request body
@@ -338,12 +332,12 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
   }
 
   // Unmarshal to type
-  if err = json.Unmarshal(body, &post); nil != err {
+  if err = json.Unmarshal(body, &put); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
-  if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
+  if err = c.Service.Auth.Authorized(ip, put.Username, put.Secret); nil != err {
     return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
@@ -357,34 +351,33 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
 
   // No difference is needed here in the return type
   return re.Marshal(route.ContentTypeJSON,
-    &BlogPutResponse {
-      ID:       post.Data.ID,
-      Title:    post.Data.Title,
-      Subtitle: post.Data.Subtitle,
-      Tag:      post.Data.Tag,
+    &PutResponse {
+      ID:       put.Data.ID,
+      Title:    put.Data.Title,
+      Subtitle: put.Data.Subtitle,
       Updated:  timeStamp.Format(c.Data.TimeFormat),
-      Body:     post.Data.Body,
+      Body:     put.Data.Body,
   })
 }
 
-type BlogDelete struct {
+type Delete struct {
   ID string `json:"id"`
 }
 
 func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body  []byte                    = []byte{}
-    err   error                     = nil
-    ip    string                    = x.Value(user.UserIPKey).(string)
-    post  auth.AuthData[BlogDelete] = auth.AuthData[BlogDelete]{}
+    body []byte                = []byte{}
+    err  error                 = nil
+    ip   string                = x.Value(user.UserIPKey).(string)
+    del  auth.AuthData[Delete] = auth.AuthData[Delete]{}
   )
 
   // Define delete record
   deleteRecord := func (lastResult sql.Result, conn *sql.Conn) (sql.Result, error) {
     q := fmt.Sprintf("DELETE a, b FROM %s AS a INNER JOIN %s AS b " +
-                     "ON a.content_id = b.id " +
+                     "ON a.page = b.id " +
                      "WHERE a.id = ?", c.Data.IndexTable, c.Data.ContentTable)
-    return conn.ExecContext(c.Service.Database.Context, q, post.Data.ID)
+    return conn.ExecContext(c.Service.Database.Context, q, del.Data.ID)
   }
 
   // Read request body
@@ -393,12 +386,12 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
   }
 
   // Unmarshal to type
-  if err = json.Unmarshal(body, &post); nil != err {
+  if err = json.Unmarshal(body, &del); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
-  if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
+  if err = c.Service.Auth.Authorized(ip, del.Username, del.Secret); nil != err {
     return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
@@ -428,7 +421,6 @@ type BlogHeader struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Tag      string `json:"tag"`
   Created  string `json:"created"`
   Updated  string `json:"updated"`
 }
@@ -438,9 +430,9 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
     head BlogHeader
     list []BlogHeader
   )
-  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, a.tag, b.created, b.updated " +
+  q := fmt.Sprintf("SELECT a.id, a.title, a.subtitle, b.created, b.updated " +
                    "FROM %s AS a INNER JOIN %s AS b " + 
-                   "ON a.content_id = b.id " +
+                   "ON a.page = b.id " +
                    "ORDER BY b.created", c.Data.IndexTable, c.Data.ContentTable)
 
   // Extract rows
@@ -452,7 +444,7 @@ func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Res
 
   // Marshal rows
   for rows.Next() {
-    if err = rows.Scan(&head.ID, &head.Title, &head.Subtitle, &head.Tag, &head.Created,
+    if err = rows.Scan(&head.ID, &head.Title, &head.Subtitle, &head.Created,
       &head.Updated); nil != err {
         break
       } else {
