@@ -13,7 +13,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '^1.22.3'
-      - name: Install MySQL
+      - id: setup-mysql
+        name: Install MySQL
         uses: shogo82148/actions-setup-mysql@v1.34.0
         with:
           distribution: "mysql"
@@ -24,6 +25,9 @@ jobs:
         run: |
           mysql -uroot -ppassword < data/db_schema.sql
           mysql -uroot -ppassword < data/db_setup.sql
+          echo "Using socket ${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock"
+          sh data/gen_config.sh ${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock tester password > config.json
+          cat config.json
       - name: Build
         run: |
           go build
