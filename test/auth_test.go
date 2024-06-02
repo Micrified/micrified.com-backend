@@ -142,7 +142,7 @@ func TestLoginPenalty (t *testing.T) {
 // token is no longer valid
 func TestSessionMutex (t *testing.T) {
   loginFunc, logoutFunc := Request[login.SessionCredential, login.LoginCredential],
-                           Request[any,  auth.AuthData[logout.LogoutCredential]]
+                           Request[any,  auth.Frame[logout.Post]]
   validCredentials := login.LoginCredential {
     Username: os.Getenv("TEST_USERNAME"), Passphrase: os.Getenv("TEST_PASSPHRASE"),
   }
@@ -160,10 +160,10 @@ func TestSessionMutex (t *testing.T) {
     }
     // Try to logout using previous session credentials (shouldn't be possible)
     if i > 1 {
-      logoutPost := auth.AuthData[logout.LogoutCredential] {
+      logoutPost := auth.Frame[logout.Post] {
         Username: validCredentials.Username,
         Secret:   sessions[i-1].Secret,
-        Data:     logout.LogoutCredential{},
+        Data:     logout.Post{},
       }
       err = logoutFunc(LogoutURL, http.MethodPost, http.StatusUnauthorized,
         logoutPost, nil)
@@ -174,10 +174,10 @@ func TestSessionMutex (t *testing.T) {
   }
 
   // Logout should be possible with the last session credential
-  logoutPost := auth.AuthData[logout.LogoutCredential] {
+  logoutPost := auth.Frame[logout.Post] {
     Username: validCredentials.Username,
     Secret:   sessions[n-1].Secret,
-    Data:     logout.LogoutCredential{},
+    Data:     logout.Post{},
   }
   err := logoutFunc(LogoutURL, http.MethodPost, http.StatusNoContent, 
     logoutPost, nil)
@@ -190,7 +190,7 @@ func TestSessionMutex (t *testing.T) {
 // expiration deadline. 
 func TestSessionExpiration (t *testing.T) {
   loginFunc, logoutFunc := Request[login.SessionCredential, login.LoginCredential],
-                           Request[any, auth.AuthData[logout.LogoutCredential]]
+                           Request[any, auth.Frame[logout.Post]]
   period := 5
   validCredentials := login.LoginCredential {
     Username:   os.Getenv("TEST_USERNAME"),
@@ -210,10 +210,10 @@ func TestSessionExpiration (t *testing.T) {
   time.Sleep(time.Duration(period) * time.Second)
 
   // Logout
-  logoutPost := auth.AuthData[logout.LogoutCredential] {
+  logoutPost := auth.Frame[logout.Post] {
     Username: validCredentials.Username,
     Secret:   sessionCredential.Secret,
-    Data:     logout.LogoutCredential{},
+    Data:     logout.Post{},
   }
   err = logoutFunc(LogoutURL, http.MethodPost, http.StatusUnauthorized,
     logoutPost, nil)

@@ -162,8 +162,8 @@ func TestBlog (t *testing.T) {
   }
 
   // POST
-  postFunc := Request[blog.PostResponse, auth.AuthData[blog.Post]]
-  blogPost, blogPostResponse := auth.AuthData[blog.Post] {
+  postFunc := Request[blog.PostResponse, auth.Frame[blog.Post]]
+  blogPost, blogPostResponse := auth.Frame[blog.Post] {
     Username: username,
     Secret:   sessionCredential.Secret,
     Data: blog.Post {
@@ -197,8 +197,8 @@ func TestBlog (t *testing.T) {
   }
 
   // PUT
-  putFunc := Request[blog.PutResponse, auth.AuthData[blog.Put]]
-  blogPut, blogPutResponse := auth.AuthData[blog.Put] {
+  putFunc := Request[blog.PutResponse, auth.Frame[blog.Put]]
+  blogPut, blogPutResponse := auth.Frame[blog.Put] {
     Username: username,
     Secret:   sessionCredential.Secret,
     Data: blog.Put {
@@ -232,8 +232,8 @@ func TestBlog (t *testing.T) {
   }
 
   // DELETE
-  delFunc := Request[any, auth.AuthData[blog.Delete]]
-  blogDelete := auth.AuthData[blog.Delete] {
+  delFunc := Request[any, auth.Frame[blog.Delete]]
+  blogDelete := auth.Frame[blog.Delete] {
     Username: username,
     Secret:   sessionCredential.Secret,
     Data: blog.Delete {
@@ -246,8 +246,8 @@ func TestBlog (t *testing.T) {
   }
 
   // LOGOUT
-  logoutFunc := Request[any, auth.AuthData[logout.LogoutCredential]]
-  logoutPost := auth.AuthData[logout.LogoutCredential]{
+  logoutFunc := Request[any, auth.Frame[logout.LogoutCredential]]
+  logoutPost := auth.Frame[logout.LogoutCredential]{
     Username: username,
     Secret:   sessionCredential.Secret,
     Data:     logout.LogoutCredential{},

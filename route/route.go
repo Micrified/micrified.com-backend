@@ -5,6 +5,7 @@ import (
   "context"
   "encoding/json"
   "fmt"
+  "io/ioutil"
   "micrified.com/service/auth"
   "micrified.com/service/database"
   "net/http"
@@ -16,6 +17,29 @@ const (
   ContentTypeJSON  = "application/json"
   ContentTypePlain = "text/plain"
 )
+
+
+/*\
+ *******************************************************************************
+ *                        Definition: Helper Functions                         *
+ *******************************************************************************
+\*/
+
+
+func ExpectJSON [T any] (rq *http.Request) (T, error) {
+  var (
+    body []byte
+    err  error
+    data T
+  )
+  if body, err = ioutil.ReadAll(rq.Body); nil != err {
+    return data, err
+  }
+  if err = json.Unmarshal(body, &data); nil != err {
+    return data, err
+  }
+  return data, nil
+}
 
 
 /*\

@@ -51,7 +51,7 @@ func NewSyncMap [T comparable, U any] () SyncMap[T,U] {
   }
 }
 
-type AuthData [T any] struct {
+type Frame [T any] struct {
   Username string `json:"username"`
   Secret   string `json:"secret"`
   Data     T      `json:"data"`

@@ -7,8 +7,6 @@ package logout
 
 import (
   "context"
-  "encoding/json"
-  "io/ioutil"
   "micrified.com/internal/user"
   "micrified.com/route"
   "micrified.com/service/auth"
@@ -107,33 +105,27 @@ func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result)
   return re.Unimplemented()
 }
 
-type LogoutCredential struct {}
+type Post struct {}
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body   []byte                          = []byte{}
-    err    error                           = nil
-    ip     string                          = x.Value(user.UserIPKey).(string)
-    logout auth.AuthData[LogoutCredential] = auth.AuthData[LogoutCredential]{}
+    err    error            = nil
+    ip     string           = x.Value(user.UserIPKey).(string)
+    post   auth.Frame[Post] = auth.Frame[Post]{}
   )
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return re.ErrorWithStatus(err, http.StatusInternalServerError)
-  }
-
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &logout); nil != err {
+  // Expect JSON
+  if post, err = route.ExpectJSON[auth.Frame[Post]](rq); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
   // Check if authorized
-  if err = c.Service.Auth.Authorized(ip, logout.Username, logout.Secret); nil != err {
+  if err = c.Service.Auth.Authorized(ip, post.Username, post.Secret); nil != err {
     return re.ErrorWithStatus(err, http.StatusUnauthorized)
   }
 
   // Remove the session 
-  if err = c.Service.Auth.Deauthenticate(logout.Username); nil != err {
+  if err = c.Service.Auth.Deauthenticate(post.Username); nil != err {
     return re.ErrorWithStatus(err, http.StatusInternalServerError)
   }
 

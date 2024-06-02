@@ -25,9 +25,7 @@ jobs:
         run: |
           mysql -uroot -ppassword < data/db_schema.sql
           mysql -uroot -ppassword < data/db_setup.sql
-          echo "Using socket ${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock"
           sh data/gen_config.sh ${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock tester password > config.json
-          cat config.json
       - name: Build
         run: |
           go build

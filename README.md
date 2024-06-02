@@ -18,7 +18,7 @@ This outputs a server binary aptly named: `server`
 
 Running the server requires two preconditions be met:
 1. A valid configuration file is present (to be fed in as a program argument)
-2. A MySQL server is running (described below)
+2. A MySQL server is running (described below, with matching credentials to the configuration)
 
 Provided these are satisfied, the server may simply be run with:
 ```
@@ -51,7 +51,7 @@ Aside from the server host and port, each *service* (implemented within the `ser
 
 ### MySQL Server
 
-As mentioned earlier, MySQL is required for operating the server. The server connects to the server upon starting using the configuration information provided as input. Installation of MySQL 8.0 and higher is recommended. A user must also be added to the database after installation and the login credentials supplied in the `Username` and `Password` fields of the configuration file. 
+As mentioned earlier, MySQL is required for operating the server. The server connects to the databse upon starting using the configuration information provided as input. Installation of MySQL 8.0 and higher is recommended. A user must also be added to the database after installation and the login credentials supplied in the `Username` and `Password` fields of the configuration file. This user must have the following privileges in order to function:`INSERT`, `UPDATE`, `DELETE`, `SELECT`, and `REFERENCES`. See `data/db_setup.sql` for an example of how these permissions can be granted.
 
 Finally, a database table schema and some initialization data is required in order for testing to function. Perform the following in order to complete the configuration:
 1. Create the database and table schema: `mysql -uroot -p<ROOT-PASSWORD> < data/db_schema.sql`

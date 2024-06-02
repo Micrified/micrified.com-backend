@@ -131,8 +131,8 @@ func TestStatic (t *testing.T) {
   }
 
   // POST
-  postFunc := Request[any, auth.AuthData[static.Post]]
-  post := auth.AuthData[static.Post] {
+  postFunc := Request[any, auth.Frame[static.Post]]
+  post := auth.Frame[static.Post] {
     Username: username,
     Secret:   sessionCredential.Secret,
     Data: static.Post {
@@ -155,8 +155,8 @@ func TestStatic (t *testing.T) {
   }
 
   // PUT
-  putFunc := Request[any, auth.AuthData[static.Put]]
-  put := auth.AuthData[static.Put] {
+  putFunc := Request[any, auth.Frame[static.Put]]
+  put := auth.Frame[static.Put] {
     Username:   username,
     Secret: sessionCredential.Secret,
     Data: static.Put {
@@ -179,8 +179,8 @@ func TestStatic (t *testing.T) {
   }
 
   // DELETE
-  delFunc := Request[any, auth.AuthData[static.Delete]]
-  del := auth.AuthData[static.Delete] {
+  delFunc := Request[any, auth.Frame[static.Delete]]
+  del := auth.Frame[static.Delete] {
     Username:   username,
     Secret: sessionCredential.Secret,
     Data: static.Delete{},
@@ -191,8 +191,8 @@ func TestStatic (t *testing.T) {
   }
 
   // LOGOUT
-  logoutFunc := Request[any, auth.AuthData[logout.LogoutCredential]]
-  logoutPost := auth.AuthData[logout.LogoutCredential]{
+  logoutFunc := Request[any, auth.Frame[logout.LogoutCredential]]
+  logoutPost := auth.Frame[logout.LogoutCredential]{
     Username: username,
     Secret:   sessionCredential.Secret,
     Data:     logout.LogoutCredential{},

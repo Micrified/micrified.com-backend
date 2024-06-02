@@ -7,9 +7,7 @@ package login
 
 import (
   "context"
-  "encoding/json"
   "fmt"
-  "io/ioutil"
   "micrified.com/internal/user"
   "micrified.com/route"
   "micrified.com/service/auth"
@@ -131,19 +129,13 @@ type SessionCredential struct {
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body    []byte              = []byte{}
     err     error               = nil
     ip      string              = x.Value(user.UserIPKey).(string)
     login   LoginCredential     = LoginCredential{}
   )
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return re.ErrorWithStatus(err, http.StatusInternalServerError)
-  }
-
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &login); nil != err {
+  // Expect JSON
+  if login, err = route.ExpectJSON[LoginCredential](rq); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 

@@ -5,9 +5,7 @@ package blog
 import (
   "context"
   "database/sql"
-  "encoding/json"
   "fmt"
-  "io/ioutil"
   "micrified.com/internal/user"
   "micrified.com/route"
   "micrified.com/service/auth"
@@ -217,20 +215,14 @@ type PostResponse struct {
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte              = []byte{}
     err       error               = nil
     ip        string              = x.Value(user.UserIPKey).(string)
-    post      auth.AuthData[Post] = auth.AuthData[Post]{}
+    post      auth.Frame[Post] = auth.Frame[Post]{}
     timeStamp time.Time           = time.Now().UTC().Truncate(time.Second)
   )
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return re.ErrorWithStatus(err, http.StatusInternalServerError)
-  }
-
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &post); nil != err {
+  // Expect JSON
+  if post, err = route.ExpectJSON[auth.Frame[Post]](rq); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
@@ -310,10 +302,9 @@ type PutResponse struct {
 
 func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body      []byte             = []byte{}
     err       error              = nil
     ip        string             = x.Value(user.UserIPKey).(string)
-    put       auth.AuthData[Put] = auth.AuthData[Put]{}
+    put       auth.Frame[Put] = auth.Frame[Put]{}
     timeStamp time.Time          = time.Now().UTC().Truncate(time.Second)
   )
 
@@ -326,13 +317,8 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
       put.Data.Subtitle, timeStamp, put.Data.Body, put.Data.ID)
   }
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return re.ErrorWithStatus(err, http.StatusInternalServerError)
-  }
-
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &put); nil != err {
+  // Expect JSON
+  if put, err = route.ExpectJSON[auth.Frame[Put]](rq); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
@@ -366,10 +352,9 @@ type Delete struct {
 
 func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Result) error {
   var (
-    body []byte                = []byte{}
     err  error                 = nil
     ip   string                = x.Value(user.UserIPKey).(string)
-    del  auth.AuthData[Delete] = auth.AuthData[Delete]{}
+    del  auth.Frame[Delete] = auth.Frame[Delete]{}
   )
 
   // Define delete record
@@ -380,13 +365,8 @@ func (c *Controller) Delete (x context.Context, rq *http.Request, re *route.Resu
     return conn.ExecContext(c.Service.Database.Context, q, del.Data.ID)
   }
 
-  // Read request body
-  if body, err = ioutil.ReadAll(rq.Body); nil != err {
-    return re.ErrorWithStatus(err, http.StatusInternalServerError)
-  }
-
-  // Unmarshal to type
-  if err = json.Unmarshal(body, &del); nil != err {
+  // Expect JSON
+  if del, err = route.ExpectJSON[auth.Frame[Delete]](rq); nil != err {
     return re.ErrorWithStatus(err, http.StatusBadRequest)
   }
 
