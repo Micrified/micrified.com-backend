@@ -1,6 +1,6 @@
 
 -- Create a MySQL user for the server with database privileges
-DROP USER "tester"@"localhost";
+DROP USER IF EXISTS "tester"@"localhost";
 CREATE USER "tester"@"localhost" IDENTIFIED BY "password";
 GRANT INSERT, UPDATE, DELETE, SELECT, REFERENCES ON *.* TO "tester"@"localhost";
 FLUSH PRIVILEGES;
