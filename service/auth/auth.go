@@ -87,7 +87,6 @@ func ToSecret (digest string, salt Hash) (secret Hash) {
   return
 }
 
-
 /*\
  *******************************************************************************
  *                           Definitions: Service                              *
@@ -231,7 +230,7 @@ func (s *Service) Authorized (ip, username, secret string) error {
   // Case: There is no session for the given username
   z, ok := s.sessions.Get(username)
   if !ok {
-    return fmt.Errorf("No session for username %s", username)
+    return fmt.Errorf("No session for username \"%s\"", username)
   }
 
   // Case: The secret doesn't match that of the session
