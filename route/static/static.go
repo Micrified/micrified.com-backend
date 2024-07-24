@@ -51,7 +51,7 @@ type Controller route.ControllerType[staticDataType]
 
 
 var staticData staticDataType = staticDataType {
-  TimeFormat:   "2006-01-02 15:04:05",
+  TimeFormat:   time.RFC3339,
   IndexTable:   "static",
   ContentTable: "page",
 }
