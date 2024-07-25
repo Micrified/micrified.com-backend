@@ -20,7 +20,7 @@ const (
 
 
 func DSN (unixSocket, username, password, database string) string {
-  return fmt.Sprintf("%s:%s@unix(%s)/%s", username, password, unixSocket,
+  return fmt.Sprintf("%s:%s@unix(%s)/%s?parseTime=true", username, password, unixSocket,
     database)
 }
 

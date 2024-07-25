@@ -9,6 +9,7 @@ import (
   "micrified.com/internal/user"
   "micrified.com/route"
   "micrified.com/service/auth"
+  "micrified.com/service/database"
   "net/http"
   "strconv"
   "time"
@@ -153,8 +154,8 @@ type BlogResponse struct {
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
   Body     string `json:"body"`
-  Created  string `json:"created"`
-  Updated  string `json:"updated"`
+  Created  database.DateTime `json:"created"`
+  Updated  database.DateTime `json:"updated"`
 }
 
 func (c *Controller) Get (x context.Context, rq *http.Request, re *route.Result) error {
@@ -209,8 +210,8 @@ type PostResponse struct {
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
   Body     string `json:"body"`
-  Created  string `json:"created"`
-  Updated  string `json:"updated"`
+  Created  database.DateTime `json:"created"`
+  Updated  database.DateTime `json:"updated"`
 }
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
@@ -280,8 +281,8 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
       Title:    post.Data.Title,
       Subtitle: post.Data.Subtitle,
       Body:     post.Data.Body,
-      Created:  timeStamp.Format(c.Data.TimeFormat),
-      Updated:  timeStamp.Format(c.Data.TimeFormat),
+      Created:  database.DateTime(timeStamp),
+      Updated:  database.DateTime(timeStamp),
     })
 }
 
@@ -296,7 +297,7 @@ type PutResponse struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Updated  string `json:"updated"`
+  Updated  database.DateTime `json:"updated"`
   Body     string `json:"body"`
 }
 
@@ -341,7 +342,7 @@ func (c *Controller) Put (x context.Context, rq *http.Request, re *route.Result)
       ID:       put.Data.ID,
       Title:    put.Data.Title,
       Subtitle: put.Data.Subtitle,
-      Updated:  timeStamp.Format(c.Data.TimeFormat),
+      Updated:  database.DateTime(timeStamp),
       Body:     put.Data.Body,
   })
 }
@@ -401,8 +402,8 @@ type BlogHeader struct {
   ID       string `json:"id"`
   Title    string `json:"title"`
   Subtitle string `json:"subtitle"`
-  Created  string `json:"created"`
-  Updated  string `json:"updated"`
+  Created  database.DateTime `json:"created"`
+  Updated  database.DateTime `json:"updated"`
 }
 
 func (c *ListController) Get (x context.Context, rq *http.Request, re *route.Result) error {

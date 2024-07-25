@@ -193,7 +193,8 @@ func TestBlog (t *testing.T) {
      blogResponse.Body     != blogPostResponse.Body     ||
      blogResponse.Created  != blogPostResponse.Created  ||
      blogResponse.Updated  != blogPostResponse.Updated {
-    t.Fatalf("GET blog content not as expected!")
+    t.Fatalf("GET blog content not as expected\n%+v\n%+v",
+      blogResponse, blogPostResponse)
   }
 
   // PUT
