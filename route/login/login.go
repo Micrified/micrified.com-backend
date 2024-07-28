@@ -125,6 +125,7 @@ type StoredCredential struct {
 type SessionCredential struct {
   Secret     string `json:"secret"`
   Expiration string `json:"expiration"`
+  Period     int64  `json:"period"`
 }
 
 func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result) error {
@@ -190,6 +191,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
     &SessionCredential {
       Secret:      session.Secret.HexString(),
       Expiration:  session.Expiration.Format(c.Data.TimeFormat),
+      Period:      session.Period.Milliseconds(),
   })
 }
 
