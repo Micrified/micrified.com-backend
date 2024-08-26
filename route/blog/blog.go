@@ -218,7 +218,7 @@ func (c *Controller) Post (x context.Context, rq *http.Request, re *route.Result
   var (
     err       error               = nil
     ip        string              = x.Value(user.UserIPKey).(string)
-    post      auth.Frame[Post] = auth.Frame[Post]{}
+    post      auth.Frame[Post]    = auth.Frame[Post]{}
     timeStamp time.Time           = time.Now().UTC().Truncate(time.Second)
   )
 

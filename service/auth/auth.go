@@ -191,7 +191,7 @@ func (s *Service) Authenticate (ip, username, period string, f AuthFunc) (Sessio
   // Parse session period; apply limits
   t := MaxSessionPeriod
   if value, err := strconv.Atoi(period); nil == err {
-    t = max(min(time.Duration(value) * time.Second, MaxSessionPeriod), 
+    t = max(min(time.Duration(value) * time.Millisecond, MaxSessionPeriod), 
       MinSessionPeriod)
   }
 

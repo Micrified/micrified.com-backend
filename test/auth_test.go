@@ -191,7 +191,7 @@ func TestSessionMutex (t *testing.T) {
 func TestSessionExpiration (t *testing.T) {
   loginFunc, logoutFunc := Request[login.SessionCredential, login.LoginCredential],
                            Request[any, auth.Frame[logout.Post]]
-  period := 5
+  period := 5000;
   validCredentials := login.LoginCredential {
     Username:   os.Getenv("TEST_USERNAME"),
     Passphrase: os.Getenv("TEST_PASSPHRASE"),
@@ -207,7 +207,7 @@ func TestSessionExpiration (t *testing.T) {
   }
 
   // Wait until the period expires
-  time.Sleep(time.Duration(period) * time.Second)
+  time.Sleep(time.Duration(period) * time.Millisecond)
 
   // Logout
   logoutPost := auth.Frame[logout.Post] {
